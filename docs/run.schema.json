@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "run_key": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_.:-]{1,100}$"
+    },
+    "run_date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+    },
+    "cutoff_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+    },
+    "market_context": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000
+    },
+    "raw_report": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000
+    },
+    "run_type": {
+      "type": "string",
+      "enum": [
+        "live",
+        "fixture"
+      ]
+    },
+    "signals": {
+      "minItems": 1,
+      "maxItems": 25,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "pattern": "^[A-Z0-9.-]{1,20}$"
+          },
+          "exchange": {
+            "type": "string",
+            "enum": [
+              "XNAS",
+              "XNYS",
+              "XPAR"
+            ]
+          },
+          "market_symbol": {
+            "type": "string",
+            "pattern": "^[A-Z0-9.-]{1,20}$"
+          },
+          "company": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "sector": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "tag": {
+            "type": "string",
+            "enum": [
+              "RED",
+              "ORANGE",
+              "GREEN",
+              "DOUBLE_GREEN"
+            ]
+          },
+          "signal_price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "EUR"
+            ]
+          },
+          "quote_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quote_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "data_status": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "missing"
+            ]
+          },
+          "data_reason": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "catalyst_type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "catalyst_summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "thesis": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "risks": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "invalidation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          },
+          "target_pct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "horizon_days": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 30
+          },
+          "sources": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "published_at": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "accessed_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "summary": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10000
+                }
+              },
+              "required": [
+                "url",
+                "published_at",
+                "accessed_at",
+                "summary"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "discovery_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ticker",
+          "exchange",
+          "market_symbol",
+          "company",
+          "sector",
+          "tag",
+          "signal_price",
+          "currency",
+          "quote_at",
+          "quote_source",
+          "data_status",
+          "data_reason",
+          "catalyst_type",
+          "catalyst_summary",
+          "thesis",
+          "risks",
+          "invalidation",
+          "target_pct",
+          "horizon_days",
+          "sources",
+          "discovery_reason"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "run_key",
+    "run_date",
+    "cutoff_at",
+    "generated_at",
+    "market_context",
+    "raw_report",
+    "run_type",
+    "signals"
+  ],
+  "additionalProperties": false
+}

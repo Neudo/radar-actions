@@ -1,0 +1,51 @@
+# Dependencies, builds and caches
+node_modules/
+dist/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.cache/
+.npm/
+.pytest_cache/
+coverage/
+*.tsbuildinfo
+
+# Secrets: only the reviewed, empty example is publishable
+.env*
+*.env
+*.env.*
+!/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+id_rsa*
+id_ed25519*
+.ssh/
+
+# Private state, backups, logs and generated market contexts/reports
+state/
+data/
+backups/
+logs/
+*.log
+*.dump
+*.partial
+*.bak
+*.context.json
+*.payload.json
+reports/
+
+# Local operational evidence (never source documentation)
+docs/VERIFICATION.md
+docs/final-execution.txt
+docs/fix-*.md
+docs/http-verification.json
+docs/primary-docs-extract.json
+docs/primary-docs-probe.json
+
+# Editor/OS artifacts
+.DS_Store
+*.swp
