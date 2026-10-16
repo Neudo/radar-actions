@@ -1,0 +1,18 @@
+{
+	servers {
+		protocols h1 h2
+	}
+}
+
+radar.vitalisite.com {
+	header Strict-Transport-Security "max-age=31536000"
+
+	# Operational diagnostics stay local; never expose worker errors publicly.
+	@health path /health /health/*
+	respond @health "Forbidden" 403
+
+	# Reuse the application's constant-time Basic/Bearer authentication.
+	# Browser login: radar + IR_READ_KEY; Authorization is passed unchanged.
+	rewrite / /dashboard
+	reverse_proxy 127.0.0.1:17845
+}

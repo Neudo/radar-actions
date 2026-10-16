@@ -5,7 +5,7 @@ Backend TypeScript/Fastify + PostgreSQL 17. SQL explicite via pg (pas d’ORM); 
 
 ## État et démarrage
 
-Services `api` et `db` Docker Compose avec restart unless-stopped, volume `investment-radar_postgres_data`. API publiée **uniquement 127.0.0.1:17845**; PostgreSQL:5432 réseau Docker interne, **aucun port hôte publié**. Rien n’écoute publiquement pour ce projet. L’API parle HTTP interne; exposition HTTPS est volontairement différée jusqu’au choix DNS. Ne pas ouvrir 17845 ou 5432 au pare-feu.
+Services `api` et `db` Docker Compose avec restart unless-stopped, volume `investment-radar_postgres_data`. API publiée **uniquement 127.0.0.1:17845**; PostgreSQL:5432 réseau Docker interne, **aucun port hôte publié**. Caddy expose désormais uniquement HTTPS public sur `radar.vitalisite.com` (HTTP redirigé), avec authentification applicative existante. Voir `docs/HTTPS.md`. Ne pas ouvrir 17845 ou 5432 au pare-feu.
 
 ```sh
 cd /home/debian/.hermes/workspace/projects/investment-radar
@@ -31,7 +31,7 @@ Tous les secrets sont uniquement dans `/home/debian/.hermes/.env` (0600), jamais
 
 Endpoints sauf /health exigent Bearer (lecture ou écriture); POST accepte seulement la clé écriture. Dashboard accepte aussi Basic: utilisateur `radar`, mot de passe IR_READ_KEY. Ne pas inscrire ce secret dans URL, arguments shell, fichiers exportés ou logs. Limite 120 requêtes/min/IP, 1MiB corps, validation Zod stricte, SQL paramétré, journaux Docker tournants et Authorization masquée.
 
-Accès dashboard tant que DNS absent: tunnel SSH `ssh -L 17845:127.0.0.1:17845 <compte>@<vps>` puis navigateur `http://127.0.0.1:17845/dashboard`, Basic via clé lecture obtenue localement côté serveur sans partage dans un chat. Ne pas transmettre Basic sur HTTP public. API authentifiée: `python3 scripts/read-api.py /api/v1/radar/analytics` charge la clé côté serveur sans l’afficher.
+Accès public protégé : `https://radar.vitalisite.com/dashboard` (voir `docs/HTTPS.md`). Solution de secours : tunnel SSH `ssh -L 17845:127.0.0.1:17845 <compte>@<vps>` puis navigateur `http://127.0.0.1:17845/dashboard`, Basic via clé lecture obtenue localement côté serveur sans partage dans un chat. Ne pas transmettre Basic sur HTTP public. API authentifiée: `python3 scripts/read-api.py /api/v1/radar/analytics` charge la clé côté serveur sans l’afficher.
 
 ## API
 
@@ -70,9 +70,9 @@ Les observations et réponses source sont append-only. Révision d’une OHLC d�
 
 Restauration sinistre: arrêter API/worker et jobs du projet, conserver volumeoriginal et faire dump si possible; sur DB neuve avec même stack restore `pg_restore -U radar_owner -d investment_radar --no-owner --no-acl --single-transaction --exit-on-error` via `compose exec -T db` stdin fichier. Ne pas faire --clean contre historique protégé. Pour conserver DBexistante: administrateur renomme investment_radar après fermeture des connexions, crée une DBvide investment_radar puis restaure (opération manuelle expressément validée). Exécuter migrate pour réattribuer droits runtime, redémarrer API, vérifier health/counts/immuabilité et rapport, réactiver les jobs seulement ensuite. Ne jamais employer compose down -v sans validation et sauvegarde horshôte.
 
-## HTTPS / intégration externe (pas activée)
+## HTTPS / intégration externe
 
-Attente choix explicite d’un domaine et DNS vers le VPS. Réutiliser reverse proxy existant après audit, upstream 127.0.0.1:17845, TLS valide obligatoire, redirection HTTP->HTTPS, aucune route PostgreSQL, aucun port17845public. Contrôler l’exposition health (masquer détails si désiré), auth et rate-limit proxy avant ouverture; conserver trustProxy=false tant qu’une configuration IP proxy explicite n’est pas auditée. Aucune configuration de domaine inventée. Une intégration externe n’accédera qu’àPOST HTTPS authentifié, jamais SSH/DB/Docker/filesystem. Pas de dashboard public sans TLS et clélecture.
+Accès déployé : `https://radar.vitalisite.com/dashboard`, utilisateur Basic `radar`, mot de passe `IR_READ_KEY` conservé exclusivement dans `~/.hermes/.env`. Caddy gère le certificat public, son renouvellement et la redirection HTTP→HTTPS ; `/health` reste privé (403 public). Authentification et `trustProxy=false` existants conservés. Configuration reproductible et vérification lecture seule : `docs/HTTPS.md`, `deploy/Caddyfile`, `scripts/verify-https.py`. Aucun cron ni worker réactivé. Une intégration externe utilise l’API HTTPS authentifiée, jamais SSH/DB/Docker/filesystem.
 
 ## Vérification et limites
 
