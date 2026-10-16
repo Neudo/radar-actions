@@ -45,6 +45,182 @@
       "items": {
         "type": "object",
         "properties": {
+          "assessment_status": {
+            "type": "string",
+            "enum": [
+              "assessed",
+              "unknown"
+            ]
+          },
+          "setup": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "listing": {
+                    "type": "object",
+                    "properties": {
+                      "identifier": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "venue": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      },
+                      "currency": {
+                        "type": "string",
+                        "enum": [
+                          "USD",
+                          "EUR"
+                        ]
+                      },
+                      "quote_price": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "quote_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      "quote_source": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "trade_republic_verified": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "identifier",
+                      "venue",
+                      "currency",
+                      "quote_price",
+                      "quote_at",
+                      "quote_source",
+                      "trade_republic_verified"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "support": {
+                    "type": "object",
+                    "properties": {
+                      "low": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "high": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "basis": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 10000
+                      }
+                    },
+                    "required": [
+                      "low",
+                      "high",
+                      "basis"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "alert": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "low": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "high": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "basis": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 10000
+                          }
+                        },
+                        "required": [
+                          "low",
+                          "high",
+                          "basis"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "structural_invalidation": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "low": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "high": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "basis": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 10000
+                          }
+                        },
+                        "required": [
+                          "low",
+                          "high",
+                          "basis"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "technical_evidence": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 10000
+                  },
+                  "confirmations": {
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 10000
+                    }
+                  }
+                },
+                "required": [
+                  "listing",
+                  "support",
+                  "alert",
+                  "structural_invalidation",
+                  "technical_evidence",
+                  "confirmations"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "ticker": {
             "type": "string",
             "pattern": "^[A-Z0-9.-]{1,20}$"

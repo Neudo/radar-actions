@@ -83,7 +83,7 @@ function filter(input: unknown) {
   if (q.tracking) add("COALESCE(p.status,'pending')=?", q.tracking);
   if (q.eligible === "true")
     where.push(
-      "COALESCE(p.status,'pending') NOT IN ('missing','quarantined') AND s.data_status!='missing'",
+      "COALESCE(p.status,'pending') NOT IN ('missing','quarantined') AND s.data_status!='missing' AND COALESCE(s.payload->>'assessment_status','assessed')!='unknown'",
     );
   if (q.from) add("r.run_date>=?", q.from);
   if (q.to) add("r.run_date<=?", q.to);
@@ -102,7 +102,7 @@ const select =
 function orderBy(sort: string) {
   const stable = ",s.ticker ASC,s.id ASC";
   const metric = (field: string, direction: string) =>
-    `CASE WHEN p.status NOT IN ('missing','quarantined') AND s.data_status!='missing' THEN (${field})::numeric END ${direction} NULLS LAST` +
+    `CASE WHEN p.status NOT IN ('missing','quarantined') AND s.data_status!='missing' AND COALESCE(s.payload->>'assessment_status','assessed')!='unknown' THEN (${field})::numeric END ${direction} NULLS LAST` +
     stable;
   switch (sort) {
     case "date_asc":
@@ -303,7 +303,7 @@ export async function buildApp(
     const { values, where } = filter(req.query);
     const rows = (
       await pool.query(
-        "SELECT s.run_id,s.tag,s.currency,s.data_status,p.metrics performance,p.status" +
+        "SELECT s.run_id,s.tag,s.currency,s.data_status,s.payload->>'assessment_status' AS assessment_status,p.metrics performance,p.status" +
           join +
           where,
         values,
@@ -313,7 +313,8 @@ export async function buildApp(
       ...r,
       performance:
         ["missing", "quarantined"].includes(r.status) ||
-        r.data_status === "missing"
+        r.data_status === "missing" ||
+        r.assessment_status === "unknown"
           ? null
           : r.performance,
     }));

@@ -62,5 +62,13 @@ test("quarantined and missing measures never appear as validated returns", () =>
     "Non mesurable · lacune",
   );
   assert.equal(safeURL("javascript:alert(1)"), null);
+  assert.equal(
+    measure({
+      ...row,
+      tracking_status: "active",
+      payload: { assessment_status: "unknown" },
+    }),
+    "Exclu · non évalué",
+  );
   assert.equal(safeURL("https://example.com/a"), "https://example.com/a");
 });

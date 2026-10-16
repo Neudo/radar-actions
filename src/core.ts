@@ -126,7 +126,11 @@ const stats = (xs: (number | null)[]) => {
   };
 };
 export function aggregate(
-  rows: { tag: string; performance: ReturnType<typeof calculate> | null }[],
+  rows: {
+    tag: string;
+    assessment_status?: string;
+    performance: ReturnType<typeof calculate> | null;
+  }[],
 ) {
   const group = (rs: typeof rows) => {
     const mature = rs.filter((r) => r.performance?.matured);
@@ -178,10 +182,15 @@ export function aggregate(
       ),
     };
   };
+  const assessed = rows.filter((r) => r.assessment_status !== "unknown");
+  const safe = rows.map((r) =>
+    r.assessment_status === "unknown" ? { ...r, performance: null } : r,
+  );
   return {
-    overall: group(rows),
+    overall: group(safe),
+    unknown_count: rows.length - assessed.length,
     by_tag: Object.fromEntries(
-      tags.map((t) => [t, group(rows.filter((r) => r.tag === t))]),
+      tags.map((t) => [t, group(assessed.filter((r) => r.tag === t))]),
     ),
     warning:
       "Forward testing only. Incomplete samples excluded from 30-session rates; no currency conversion. Close drawdown exact; OHLC drawdown bounded.",
@@ -189,7 +198,33 @@ export function aggregate(
 }
 const text = z.string().min(1).max(10000),
   date = z.iso.datetime({ offset: true });
+const zoneSchema = z
+  .strictObject({
+    low: z.number().positive(),
+    high: z.number().positive(),
+    basis: text,
+  })
+  .refine((v) => v.low <= v.high, { message: "Zone low must not exceed high" });
+const setupSchema = z.strictObject({
+  listing: z.strictObject({
+    identifier: z.string().min(1).max(100),
+    venue: z.string().min(1).max(100),
+    currency: z.enum(["USD", "EUR"]),
+    quote_price: z.number().positive(),
+    quote_at: date,
+    quote_source: z.string().url(),
+    trade_republic_verified: z.boolean(),
+  }),
+  support: zoneSchema,
+  alert: zoneSchema.nullable(),
+  structural_invalidation: zoneSchema.nullable(),
+  technical_evidence: text,
+  confirmations: z.array(text).max(20),
+});
 export const signalSchema = z.strictObject({
+  // Optional without defaults: old parsed payloads and their canonical hashes stay identical.
+  assessment_status: z.enum(["assessed", "unknown"]).optional(),
+  setup: setupSchema.nullable().optional(),
   ticker: z.string().regex(/^[A-Z0-9.-]{1,20}$/),
   exchange: z.enum(["XNAS", "XNYS", "XPAR"]),
   market_symbol: z.string().regex(/^[A-Z0-9.-]{1,20}$/),
@@ -292,6 +327,55 @@ export function validateRun(input: unknown): Run {
       !s.data_reason
     )
       throw Error("Missing data cannot be RED or priced");
+    if (s.assessment_status === "unknown" && (s.setup || s.tag !== "ORANGE"))
+      throw Error("Unknown assessment cannot claim a setup or directional tag");
+    if (s.setup) {
+      if (s.data_status !== "verified")
+        throw Error("Setup requires verified baseline");
+      const p = s.setup,
+        l = p.listing,
+        age = cutoff - Date.parse(l.quote_at);
+      if (age <= 0 || age > 5 * 86400000)
+        throw Error("Setup quote must be recent and strictly pre-cutoff");
+      const native =
+        l.identifier === s.ticker + ":" + s.exchange &&
+        l.venue === s.exchange &&
+        l.currency === s.currency;
+      if (native) {
+        if (
+          l.quote_at !== s.quote_at ||
+          l.quote_price !== s.signal_price ||
+          l.quote_source !== s.quote_source
+        )
+          throw Error("Setup quote differs from frozen native baseline");
+      } else if (
+        l.currency !== "EUR" ||
+        !l.trade_republic_verified ||
+        !/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(l.identifier)
+      )
+        throw Error(
+          "Alternate listing requires verified EUR Trade Republic instrument ISIN and quotation; no FX conversion",
+        );
+      if (
+        p.alert &&
+        (p.alert.low < p.support.low ||
+          p.alert.low > l.quote_price ||
+          p.alert.high <= p.support.high)
+      )
+        throw Error(
+          "Alert must approach support before rebound, not chase a higher price",
+        );
+      if (
+        p.structural_invalidation &&
+        p.structural_invalidation.high >= p.support.low
+      )
+        throw Error("Invalidation must lie below documented support");
+      if (
+        ["GREEN", "DOUBLE_GREEN"].includes(s.tag) &&
+        p.confirmations.length < 2
+      )
+        throw Error("Green setup requires multiple confirmations");
+    }
     for (const src of s.sources)
       if (src.published_at && new Date(src.published_at).getTime() > cutoff)
         throw Error("Post-cutoff source");

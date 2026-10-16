@@ -39,7 +39,9 @@ function append(root, ...children) {
 function text(root, value) {
   root.replaceChildren(el("p", value));
 }
-function badge(tag) {
+function badge(tag, assessment) {
+  if (assessment === "unknown")
+    return el("span", "Non évalué", "badge tag-unknown");
   return el(
     "span",
     tags[tag] || "Non renseignée",
@@ -509,7 +511,11 @@ function renderSignals(value) {
       const li = el("li", null, "signal-card");
       append(
         li,
-        append(el("div", null, "card-heading"), identity(row), badge(row.tag)),
+        append(
+          el("div", null, "card-heading"),
+          identity(row),
+          badge(row.tag, row.payload?.assessment_status),
+        ),
         dl([
           ["Analyse", day(row.run_date)],
           ["Entrée", price(row.signal_price, row.currency)],
@@ -558,7 +564,11 @@ function renderSignals(value) {
   const body = el("tbody");
   for (const row of items) {
     const r = el("tr");
-    const cells = [identity(row), badge(row.tag), day(row.run_date)];
+    const cells = [
+      identity(row),
+      badge(row.tag, row.payload?.assessment_status),
+      day(row.run_date),
+    ];
     if (!checkpoints) cells.push(price(row.signal_price, row.currency));
     cells.push(follow(row));
     if (checkpoints)
@@ -726,6 +736,12 @@ function renderAnalytics(value) {
   append(
     comp,
     el("h2", "Par qualification"),
+    el(
+      "p",
+      (value.unknown_count || 0) +
+        " non évalué(s), hors cohortes par qualification.",
+      "sample-note",
+    ),
     region(
       table(
         "Échantillons J30 · attente = total moins matures, exclusions incluses",
@@ -930,7 +946,7 @@ function renderDetail(row) {
     "back-link",
   );
   back.dataset.back = "true";
-  append(top, back, badge(row.tag));
+  append(top, back, badge(row.tag, row.payload?.assessment_status));
   root.append(top);
   if (excluded(row)) {
     const notice = el("div", null, "exclusion-notice");
@@ -940,7 +956,9 @@ function renderDetail(row) {
         "strong",
         row.tracking_status === "quarantined"
           ? "Performance exclue : révision d’une observation figée."
-          : "Performance exclue : données manquantes.",
+          : p.assessment_status === "unknown"
+            ? "Qualification inconnue : recherche insuffisante, pas un setup ORANGE."
+            : "Performance exclue : données manquantes.",
       ),
       el(
         "p",
@@ -960,6 +978,65 @@ function renderDetail(row) {
     ),
     section("Risques", el("p", p.risks || "Non renseignés")),
     section("Invalidation", el("p", p.invalidation || "Non renseignée")),
+    section(
+      "Support et zone d’alerte J0",
+      ...(p.setup
+        ? (() => {
+            const s = p.setup,
+              currency = s.listing.currency;
+            const zone = (v) =>
+              v
+                ? price(v.low, currency) +
+                  " – " +
+                  price(v.high, currency) +
+                  " · " +
+                  v.basis
+                : "Non déterminée";
+            return [
+              dl([
+                [
+                  "Cotation des niveaux",
+                  s.listing.identifier + " · " + s.listing.venue,
+                ],
+                ["Support documenté", zone(s.support)],
+                ["Zone d’alerte (réanalyse seulement)", zone(s.alert)],
+                ["Invalidation structurelle", zone(s.structural_invalidation)],
+                [
+                  "Cours de référence des niveaux",
+                  price(s.listing.quote_price, currency) +
+                    " · " +
+                    dateTime(s.listing.quote_at),
+                ],
+                [
+                  "Source de cette cotation",
+                  external("Consulter la cotation", s.listing.quote_source),
+                ],
+                [
+                  "Disponibilité Trade Republic vérifiée",
+                  s.listing.trade_republic_verified
+                    ? "Oui · voir les sources"
+                    : "Non établie",
+                ],
+                [
+                  "Confirmations",
+                  s.confirmations.join(" · ") || "Non confirmées",
+                ],
+              ]),
+              el("p", s.technical_evidence),
+              el(
+                "p",
+                "Niveaux figés dans l’analyse quotidienne. Alerte = nouvelle analyse, jamais achat. Pas de surveillance temps réel ni push automatique.",
+                "sample-note",
+              ),
+            ];
+          })()
+        : [
+            el(
+              "p",
+              "Niveaux non renseignés dans ce signal d’origine; aucun niveau ajouté rétroactivement.",
+            ),
+          ]),
+    ),
   );
   const sources = el("ol", null, "sources");
   for (const source of p.sources || []) {

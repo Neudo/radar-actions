@@ -65,11 +65,13 @@ export const tracking = (value) =>
   })[value] || "État non renseigné";
 export const excluded = (row) =>
   ["quarantined", "missing"].includes(row.tracking_status) ||
-  row.data_status === "missing";
+  row.data_status === "missing" ||
+  row.payload?.assessment_status === "unknown";
 export function measure(row, checkpoint) {
   if (row.tracking_status === "quarantined") return "Exclu · quarantaine";
   if (row.tracking_status === "missing" || row.data_status === "missing")
     return "Exclu · données manquantes";
+  if (row.payload?.assessment_status === "unknown") return "Exclu · non évalué";
   const p = row.performance;
   const v = checkpoint ? p?.checkpoints?.[checkpoint] : p?.current_return_pct;
   if (numeric(v) != null) return percent(v);

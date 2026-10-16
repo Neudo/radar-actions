@@ -492,6 +492,89 @@ test(
     const status = await get("status");
     assert.equal(status.schedule, "unknown");
     assert.equal("errors" in status.last_worker, false);
+    // New optional J0 fields persist in existing immutable JSONB, no migration.
+    const pullback: any = structuredClone(fixture);
+    pullback.run_key = "FIXTURE:pullback-structured";
+    Object.assign(pullback.signals[0], {
+      tag: "ORANGE",
+      assessment_status: "assessed",
+      setup: {
+        listing: {
+          identifier: "TEST:XNYS",
+          venue: "XNYS",
+          currency: "USD",
+          quote_price: 100,
+          quote_at: fixture.signals[0].quote_at,
+          quote_source: fixture.signals[0].quote_source,
+          trade_republic_verified: false,
+        },
+        support: { low: 92, high: 93, basis: "TEST support" },
+        alert: { low: 94, high: 95, basis: "TEST pre-support reanalysis" },
+        structural_invalidation: {
+          low: 90,
+          high: 91,
+          basis: "TEST structural break",
+        },
+        technical_evidence: "EXPLICIT TEST FIXTURE",
+        confirmations: [],
+      },
+    });
+    const postPullback = await app.inject({
+      method: "POST",
+      url: "/api/v1/radar/runs",
+      headers: h,
+      payload: pullback,
+    });
+    assert.equal(postPullback.statusCode, 201, postPullback.body);
+    const storedPullback = (
+      await get("signals?include_fixtures=true&limit=500")
+    ).items.find((s: any) => s.run_id === postPullback.json().id);
+    assert.deepEqual(
+      (await get("signals/" + storedPullback.id)).payload.setup,
+      pullback.signals[0].setup,
+    );
+    assert.equal(
+      (await get("runs/" + storedPullback.run_id)).payload.signals[0]
+        .assessment_status,
+      "assessed",
+    );
+    const altered = structuredClone(pullback);
+    altered.signals[0].setup.support.low = 91.5;
+    assert.equal(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/v1/radar/runs",
+          headers: h,
+          payload: altered,
+        })
+      ).statusCode,
+      409,
+    );
+    const unknown = structuredClone(pullback);
+    unknown.run_key = "FIXTURE:unknown-research";
+    unknown.signals[0].assessment_status = "unknown";
+    unknown.signals[0].setup = null;
+    assert.equal(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/v1/radar/runs",
+          headers: h,
+          payload: unknown,
+        })
+      ).statusCode,
+      201,
+    );
+    const withUnknown = await get("analytics?include_fixtures=true");
+    assert.equal(withUnknown.unknown_count, 1);
+    assert.equal(withUnknown.by_tag.ORANGE.total, 1);
+    assert.equal(
+      (await get("signals?include_fixtures=true&eligible=true")).items.some(
+        (s: any) => s.payload.assessment_status === "unknown",
+      ),
+      false,
+    );
     await app.close();
     await pool.end();
   },

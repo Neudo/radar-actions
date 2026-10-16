@@ -2,6 +2,7 @@ import pg from "pg";
 import { watchlist } from "./core.js";
 import { cutoffForDate, quoteBeforeCutoff } from "./quotes.js";
 import { fetchChart } from "./market.js";
+import { technicalContext } from "./technical.js";
 const date =
   process.argv[2] ??
   new Intl.DateTimeFormat("en-CA", {
@@ -33,22 +34,27 @@ try {
       try {
         const f = await fetchChart(w.market_symbol, "1m", pool);
         const quote = quoteBeforeCutoff(f.chart, cutoff_at, w.currency);
-        const d = await fetchChart(w.market_symbol, "1d", pool);
-        const q = d.chart.indicators.quote[0],
-          times = d.chart.timestamp;
-        const daily = times
-          .map((t: number, i: number) => ({
-            at: new Date(t * 1000).toISOString(),
-            open: q.open[i],
-            close: q.close[i],
-            high: q.high[i],
-            low: q.low[i],
-          }))
-          .filter((x: any) => x.at.slice(0, 10) < date && x.close > 0);
+        let technical = null,
+          daily_fetch_id = null,
+          technical_error = null;
+        try {
+          const d = await fetchChart(w.market_symbol, "1d", pool);
+          daily_fetch_id = d.id;
+          technical = technicalContext(
+            d.chart,
+            cutoff_at,
+            w.currency,
+            quote.signal_price,
+          );
+        } catch (e) {
+          technical_error =
+            e instanceof Error ? e.message : "Daily data unavailable";
+        }
+        const daily = technical?.daily_history ?? [];
         const prev = daily.at(-1);
         const perf = (n: number) =>
           daily.length >= n && quote.signal_price !== null
-            ? 100 * (quote.signal_price / daily.at(-n).close - 1)
+            ? 100 * (quote.signal_price / daily.at(-n)!.close - 1)
             : null;
         results.push({
           ...w,
@@ -62,7 +68,10 @@ try {
           five_session_performance_pct: perf(5),
           month_approx_performance_pct: perf(20),
           last_closed_session: prev,
-          daily_history: daily.slice(-30),
+          daily_history: daily,
+          technical_context: technical,
+          technical_error,
+          daily_fetch_id,
           sources_available_until: cutoff_at,
         });
       } catch (e) {

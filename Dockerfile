@@ -9,6 +9,7 @@ COPY src ./src
 COPY migrations ./migrations
 COPY scripts ./scripts
 COPY tests ./tests
+COPY prompts ./prompts
 RUN npm run build
 USER node
 CMD ["node","dist/server.js"]
