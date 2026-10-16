@@ -1,0 +1,109 @@
+{
+  "repository": "https://github.com/msitarzewski/agency-agents",
+  "commit": "652b2692f8d8ec2b1f1a38e559073e287dfdc469",
+  "license": "MIT",
+  "copyright": "Copyright (c) 2025 AgentLand Contributors",
+  "snapshot": "Only five selected role Markdown files and LICENSE; byte-identical upstream copies, inert provenance only, not executable instructions.",
+  "files": [
+    {
+      "role": "ux-researcher",
+      "upstream_path": "design/design-ux-researcher.md",
+      "vendor_path": "agents/vendor/agency-agents/design/design-ux-researcher.md",
+      "sha256": "25f59c4333df2d0f1170ff7a1b11ea8415fd3d0ef80c3e0985209aeb4018680f"
+    },
+    {
+      "role": "ui-designer",
+      "upstream_path": "design/design-ui-designer.md",
+      "vendor_path": "agents/vendor/agency-agents/design/design-ui-designer.md",
+      "sha256": "3130768958d3b3d38178aaec91cf789e01ecca4984c8674d4aaea446b6cba240"
+    },
+    {
+      "role": "frontend-developer",
+      "upstream_path": "engineering/engineering-frontend-developer.md",
+      "vendor_path": "agents/vendor/agency-agents/engineering/engineering-frontend-developer.md",
+      "sha256": "35961da50f408e00eb6189c87825ac5e62e6b1bf9de3dee198a95536c6d2619e"
+    },
+    {
+      "role": "accessibility-auditor",
+      "upstream_path": "testing/testing-accessibility-auditor.md",
+      "vendor_path": "agents/vendor/agency-agents/testing/testing-accessibility-auditor.md",
+      "sha256": "362935907af23839775b9c6162f38c0c5a740542ab4350cb5c5b5a0d9f9a4268"
+    },
+    {
+      "role": "reality-checker",
+      "upstream_path": "testing/testing-reality-checker.md",
+      "vendor_path": "agents/vendor/agency-agents/testing/testing-reality-checker.md",
+      "sha256": "6d32fcdb114233e13902ec6372d50293b120e85d490b5e81d372c29808f988a1"
+    }
+  ],
+  "license_sha256": "9a45258434d5cedf0af73c9ad4771373701225038d246c49219026c33677f66f",
+  "review": {
+    "method": "Full text inspection of selected files plus regex checks; not an audit of the whole upstream repository.",
+    "automated_findings": {
+      "ux-researcher": {
+        "destructive_or_remote_exec": [],
+        "prompt_override": [],
+        "environment_or_secrets": []
+      },
+      "ui-designer": {
+        "destructive_or_remote_exec": [],
+        "prompt_override": [],
+        "environment_or_secrets": []
+      },
+      "frontend-developer": {
+        "destructive_or_remote_exec": [],
+        "prompt_override": [],
+        "environment_or_secrets": []
+      },
+      "accessibility-auditor": {
+        "destructive_or_remote_exec": [],
+        "prompt_override": [],
+        "environment_or_secrets": []
+      },
+      "reality-checker": {
+        "destructive_or_remote_exec": [],
+        "prompt_override": [],
+        "environment_or_secrets": []
+      }
+    },
+    "manual_findings": [
+      "No secret exfiltration or system-prompt override found in the five selected role files.",
+      "Upstream persona identity/memory and mandatory-rule wording is not imported as system authority. Adaptations are task-scoped role prompts.",
+      "Reality Checker assumes Laravel/HTML paths and qa-playwright-capture.sh; these commands are omitted, not installed or run.",
+      "Accessibility Auditor includes npx commands that may download packages; these are omitted. Prefer existing project tools, require permission for installs.",
+      "Frontend contains unrelated editor/RPC scope, illustrative incomplete table code, legacy FID targets; omitted. UI token examples contain undefined variables; do not copy them.",
+      "Upstream numeric outcome claims, quotas, canned success reports, and fixed revision counts are not evidence and are omitted.",
+      "No remote installers, conversion scripts, plugins, hooks, or upstream config were executed."
+    ]
+  },
+  "official_skill_format_docs": "https://hermes-agent.nousresearch.com/docs/user-guide/features/skills",
+  "installed_skill": "agency-design-workflow",
+  "installed_path": "/home/debian/.hermes/skills/creative/agency-design-workflow",
+  "project_skill_mirror": "agents/hermes/agency-design-workflow",
+  "installed_files_sha256": {
+    "SKILL.md": "b7a1b88579940f97aaacdc44f8c5ff58d4e319fd7dce1ad0b192f30f7fcfae0e",
+    "references/ux-researcher.md": "eece6024e8cb0d382f14d3559a625f8c50ac4e65566736e87f50092225679348",
+    "references/ui-designer.md": "2a22bf48810bcafd371030fbea48b9322c8176e8b3fa7aa476ce71d9a0ca1b9d",
+    "references/frontend-developer.md": "657b729d367c5de9ff3dc85e29b3d767882c1054f908baa57f57f4e20525ff53",
+    "references/accessibility-auditor.md": "758db519ab561893a8eea19956704d1887b40f588b0f8bb72aff62dbe01df21f",
+    "references/reality-checker.md": "96bd264c25d1c319745aca1c55341dd65c8f37338893d1ccc9dd8860e2a3b160",
+    "references/provenance.md": "8ade8eb318533f3e2e3d2586cdb60c8ffc9a64243d438a714bcac0937b473c3c",
+    "references/LICENSE.md": "9a45258434d5cedf0af73c9ad4771373701225038d246c49219026c33677f66f"
+  },
+  "verification": {
+    "hermes_main_loaded": true,
+    "hermes_role_references_loaded": [
+      "ux-researcher",
+      "ui-designer",
+      "frontend-developer",
+      "accessibility-auditor",
+      "reality-checker"
+    ],
+    "hermes_support_references_loaded": [
+      "provenance.md",
+      "LICENSE.md"
+    ],
+    "vendor_matches_pinned_git_blobs": true,
+    "application_ui_tested": false
+  }
+}

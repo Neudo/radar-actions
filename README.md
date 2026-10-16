@@ -38,11 +38,14 @@ Accès public protégé : `https://radar.vitalisite.com/dashboard` (voir `docs/H
 - GET /health: API/DB, dernier worker/status/erreurs, worker_stale au-delà de36h (n’indique pas qu’un cron existe).
 - POST /api/v1/radar/runs: transaction atomique, clé quotidienne, 201 nouveau/200 replay identique/409 conflit immuable/400 invalide ou trop tard. Pas de création live après cutoff+15min; replay existant identique autorisé.
 - GET /api/v1/radar/runs: run_key, limit, offset, include_fixtures.
-- GET /api/v1/radar/signals: tag/ticker/sector/catalyst_type/exchange/from/to/active, limit <=500, offset; total exact et items paginés.
+- GET /api/v1/radar/signals: tag/ticker/sector/catalyst_type/exchange/from/to/active, search société/ticker insensible à la casse, currency/tracking/eligible, sort allowlisté, limit <=500, offset ; total exact et items paginés, tri global déterministe.
 - GET /api/v1/radar/signals/:id: signal, observations, audits.
-- GET /api/v1/radar/analytics: mêmes filtres métier, tous les résultats (pas seulement la page), global + quatre tags + devise.
+- GET /api/v1/radar/analytics: mêmes filtres métier, tous les résultats (pas seulement la page), global + quatre tags + devise, analysis_count et tracking_counts.
+- GET /api/v1/radar/runs/:id: contexte et rapport d’analyse d’origine.
+- GET /api/v1/radar/status: état minimal authentifié API/DB/worker et dates ; planification unknown, pas d’activation.
+- GET /api/v1/radar/filter-options: catégories réellement présentes dans les analyses live.
 - GET /api/v1/radar/watchlist: 20 identités permanentes.
-- GET /dashboard: overview, quatre tags, historique filtrable et actifs, détails sources/risques/observations.
+- GET /dashboard, /dashboard/bilan, /dashboard/methode, /dashboard/signaux/:id : Carnet de conviction, registre responsive, recherche/tri/pagination globaux, fiche sourcée, bilan et méthode. Compte rendu de QA et déploiement : `docs/design/QA.md`.
 
 Contrat complet `docs/PAYLOAD.md` et `docs/run.schema.json`; spécifications originales conservées dans `docs/backend-spec.md` et `prompts/big-radar-original.md`.
 

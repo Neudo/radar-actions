@@ -376,6 +376,122 @@ test(
       ),
       /Factor differs/,
     );
+    // Read-only dashboard contracts on more than one full page. Explicit test
+    // fixtures only, in the disposable database; never a historical live backfill.
+    for (let batch = 0; batch < 3; batch++) {
+      const sample = structuredClone(fixture);
+      sample.run_key = `FIXTURE:dashboard-${batch}`;
+      sample.signals = Array.from({ length: 25 }, (_, i) => ({
+        ...fixture.signals[0],
+        ticker: i === 0 ? "NVDA" : `TEST${batch}${String(i).padStart(2, "0")}`,
+        market_symbol:
+          i === 0 ? "NVDA" : `TEST${batch}${String(i).padStart(2, "0")}`,
+        company: i === 0 ? "Nvidia TEST FIXTURE" : `Fixture ${batch}-${i}`,
+      }));
+      await ingest(pool, sample as any);
+    }
+    const get = async (path: string) => {
+      const response = await app.inject({
+        url: "/api/v1/radar/" + path,
+        headers: h,
+      });
+      assert.equal(response.statusCode, 200, response.body);
+      return response.json();
+    };
+    const all = await get("signals?include_fixtures=true&limit=500");
+    assert.equal(all.total, 76);
+    const page1 = await get("signals?include_fixtures=true&limit=50");
+    const page2 = await get("signals?include_fixtures=true&limit=50&offset=50");
+    assert.equal(page1.items.length, 50);
+    assert.equal(page2.items.length, 26);
+    assert.equal(
+      new Set([...page1.items, ...page2.items].map((s: any) => s.id)).size,
+      76,
+    );
+    for (const search of ["NVDA", "nvda", "Nvidia"]) {
+      const found = await get(
+        "signals?include_fixtures=true&limit=1&offset=1&search=" + search,
+      );
+      assert.equal(found.total, 3);
+      assert.equal(found.items.length, 1);
+      assert.equal(found.items[0].ticker, "NVDA");
+      const analytics = await get(
+        "analytics?include_fixtures=true&search=" + search + "&limit=1",
+      );
+      assert.equal(
+        analytics.overall.total,
+        3,
+        "analytics uses complete search scope",
+      );
+    }
+    assert.equal(
+      (await get("signals?include_fixtures=true&search=%25")).total,
+      0,
+      "literal % is not a wildcard",
+    );
+    const selected = all.items.filter((s: any) => s.ticker === "NVDA");
+    for (let i = 0; i < selected.length; i++) {
+      await pool.query(
+        "INSERT INTO signal_performance(signal_id,metrics,status) VALUES($1,$2,$3)",
+        [
+          selected[i].id,
+          {
+            current_return_pct: i === 2 ? 999 : i,
+            checkpoints: { 5: null, 10: null, 20: null, 30: null },
+            matured: false,
+          },
+          i === 2 ? "quarantined" : "active",
+        ],
+      );
+    }
+    for (const direction of ["asc", "desc"]) {
+      const sorted = await get(
+        "signals?include_fixtures=true&sort=return_" + direction + "&limit=500",
+      );
+      assert.deepEqual(
+        sorted.items
+          .slice(0, 2)
+          .map((s: any) => s.performance.current_return_pct),
+        direction === "asc" ? [0, 1] : [1, 0],
+      );
+      assert.ok(
+        sorted.items
+          .slice(2)
+          .every(
+            (s: any) =>
+              s.tracking_status === "quarantined" ||
+              s.performance?.current_return_pct == null,
+          ),
+        "null and quarantined measures last in both directions",
+      );
+      const again = await get(
+        "signals?include_fixtures=true&sort=return_" + direction + "&limit=500",
+      );
+      assert.deepEqual(
+        again.items.map((s: any) => s.id),
+        sorted.items.map((s: any) => s.id),
+        "stable ties",
+      );
+    }
+    const eligible = await get(
+      "signals?include_fixtures=true&eligible=true&search=nvda",
+    );
+    assert.equal(eligible.total, 2);
+    const quarantined = await get(
+      "analytics?include_fixtures=true&tracking=quarantined",
+    );
+    assert.equal(quarantined.overall.checkpoints[30].n, 0);
+    assert.equal(quarantined.overall.checkpoints[30].mean, null);
+    assert.equal(quarantined.tracking_counts.quarantined, 2);
+    const native = await get("signals?include_fixtures=true&currency=EUR");
+    assert.equal(native.total, 0);
+    const detail = await get("signals/" + selected[0].id);
+    assert.ok(Array.isArray(detail.observations));
+    assert.ok(Array.isArray(detail.audits));
+    assert.equal((await get("runs/" + selected[0].run_id)).run_type, "fixture");
+    const status = await get("status");
+    assert.equal(status.schedule, "unknown");
+    assert.equal("errors" in status.last_worker, false);
     await app.close();
     await pool.end();
   },

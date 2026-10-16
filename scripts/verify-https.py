@@ -38,7 +38,7 @@ def get(path, authorization=None):
     conn.close()
     return status, body
 
-for path in ['/', '/dashboard', '/dashboard.js', '/api/v1/radar/signals', '/api/v1/radar/analytics']:
+for path in ['/', '/dashboard', '/dashboard/bilan', '/dashboard/methode', '/dashboard.js', '/dashboard-format.js', '/dashboard.css', '/api/v1/radar/status', '/api/v1/radar/filter-options', '/api/v1/radar/signals', '/api/v1/radar/analytics']:
     status, _ = get(path)
     assert status == 401, (path, status)
     print(f'GET https://{host}{path} unauthenticated: {status}')
@@ -52,7 +52,7 @@ for path in ['/', '/dashboard', '/dashboard.js', '/api/v1/radar/analytics', '/ap
     status, body = get(path, basic)
     assert status == 200, (path, status)
     if path in ['/', '/dashboard']:
-        assert b'Investment Radar' in body
+        assert b'Journal de recherche' in body and b'LE REGISTRE / 01' in body
     if path == '/dashboard.js':
         assert read_key.encode() not in body
     print(f'GET https://{host}{path} Basic authenticated: {status}')

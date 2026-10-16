@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Radar — Journal de recherche</title>
+    <!-- dashboard-style -->
+  </head>
+  <body>
+    <a class="skip" href="#main">Aller au contenu</a>
+    <header class="masthead">
+      <a class="brand" href="/dashboard"
+        ><span class="monogram" aria-hidden="true">R /</span
+        ><span>Radar<small>Journal de recherche</small></span></a
+      >
+      <nav aria-label="Navigation principale">
+        <a href="/dashboard" data-view="signals">Signaux</a
+        ><a href="/dashboard/bilan" data-view="analytics">Bilan</a
+        ><a href="/dashboard/methode" data-view="method">Méthode</a>
+      </nav>
+      <span class="edition">France / États-Unis<br />EUR · USD</span>
+    </header>
+    <main id="main">
+      <section class="trust" aria-label="État du suivi">
+        <details id="trust-details">
+          <summary>
+            <span class="status-dot" aria-hidden="true"></span
+            ><strong id="trust-title">Vérification de l’état du suivi…</strong
+            ><span class="trust-action">État du suivi</span>
+          </summary>
+          <div id="trust-body">
+            <p>
+              Chargement de l’état de l’API, du traitement et de la fraîcheur
+              des données…
+            </p>
+          </div>
+        </details>
+      </section>
+      <p class="disclaimer">
+        Expérimentation personnelle <span aria-hidden="true">/</span> Aucun
+        ordre ni recommandation
+      </p>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow" id="eyebrow">LE REGISTRE / 01</p>
+          <h1 id="page-title">Signaux</h1>
+          <p id="scope">Toutes les analyses enregistrées</p>
+        </div>
+        <p class="heading-note" id="heading-note">
+          Une qualification de recherche.<br />Une thèse figée. Des preuves à
+          suivre.
+        </p>
+      </div>
+      <section id="selection" aria-label="Sélection des signaux">
+        <details id="filter-disclosure" open>
+          <summary class="mobile-summary">
+            Filtrer la sélection
+            <span id="mobile-filter-state">Tous les signaux</span>
+          </summary>
+          <form id="filter">
+            <div class="primary-filters">
+              <label class="search-field"
+                >Rechercher une société ou un ticker<input
+                  type="search"
+                  name="search"
+                  maxlength="100"
+                  placeholder="Ex. Nvidia, NVDA…"
+                  autocomplete="off" /></label
+              ><label
+                >Qualification<select name="tag">
+                  <option value="">Toutes</option>
+                  <option value="RED">Rouge</option>
+                  <option value="ORANGE">Orange</option>
+                  <option value="GREEN">Vert</option>
+                  <option value="DOUBLE_GREEN">Double vert</option>
+                </select></label
+              ><label
+                >Du<input
+                  name="from"
+                  type="date"
+                  aria-describedby="filter-error" /></label
+              ><label
+                >Au<input
+                  name="to"
+                  type="date"
+                  aria-describedby="filter-error" /></label
+              ><button class="primary" type="submit">
+                Appliquer <span aria-hidden="true">↗</span>
+              </button>
+            </div>
+            <details id="more-filters">
+              <summary>Plus de filtres</summary>
+              <div class="extra-filters">
+                <label
+                  >Place<select name="exchange">
+                    <option value="">Toutes</option>
+                  </select></label
+                ><label
+                  >Devise<select name="currency">
+                    <option value="">Toutes</option>
+                  </select></label
+                ><label
+                  >Secteur<select name="sector">
+                    <option value="">Tous</option>
+                  </select></label
+                ><label
+                  >Type de catalyseur<select name="catalyst_type">
+                    <option value="">Tous</option>
+                  </select></label
+                ><label
+                  >État du suivi<select name="tracking">
+                    <option value="">Tous</option>
+                    <option value="pending">En attente</option>
+                    <option value="active">En cours</option>
+                    <option value="missing">Données manquantes</option>
+                    <option value="quarantined">Quarantaine</option>
+                    <option value="completed">Terminé</option>
+                  </select></label
+                ><label class="checkbox"
+                  ><input type="checkbox" name="eligible" value="true" />
+                  Données exploitables uniquement</label
+                ><label class="checkbox"
+                  ><input type="checkbox" name="active" value="true" /> Suivi
+                  non terminé (quarantaine incluse)</label
+                >
+              </div>
+            </details>
+            <p id="filter-error" class="error-text" role="alert"></p>
+            <div class="filter-summary">
+              <p id="active-filters">Aucun filtre appliqué</p>
+              <button type="button" id="reset" class="text-button">
+                Réinitialiser
+              </button>
+            </div>
+          </form>
+        </details>
+      </section>
+      <section id="signals-view" aria-labelledby="register-heading">
+        <div class="register-toolbar">
+          <div>
+            <h2 id="register-heading">Le registre</h2>
+            <p id="result-summary" role="status" aria-live="polite">
+              Chargement des signaux…
+            </p>
+          </div>
+          <div class="view-controls">
+            <label
+              >Trier par<select id="sort">
+                <option value="date_desc">Analyse · plus récente</option>
+                <option value="date_asc">Analyse · plus ancienne</option>
+                <option value="company_asc">Société · A–Z</option>
+                <option value="tag_desc">
+                  Qualification · double vert → rouge
+                </option>
+                <option value="return_desc">
+                  Rendement observé · décroissant
+                </option>
+                <option value="return_asc">
+                  Rendement observé · croissant
+                </option>
+                <option value="j30_desc">J30 · décroissant</option>
+                <option value="j30_asc">J30 · croissant</option>
+              </select></label
+            ><label
+              >Colonnes<select id="columns">
+                <option value="essential">Essentiel</option>
+                <option value="checkpoints">Points de contrôle</option>
+              </select></label
+            ><label class="density"
+              >Densité<select id="density">
+                <option value="comfort">Confort</option>
+                <option value="compact">Compact</option>
+              </select></label
+            >
+          </div>
+        </div>
+        <div id="signals-error" aria-live="polite"></div>
+        <div id="rows" aria-busy="true">
+          <p class="loading">Chargement des signaux…</p>
+        </div>
+        <div class="pagination">
+          <label
+            >Par page<select id="limit">
+              <option>25</option>
+              <option selected>50</option>
+              <option>100</option>
+            </select></label
+          >
+          <p id="page-summary"></p>
+          <div>
+            <button id="prev" disabled>← Précédent</button
+            ><button id="next" disabled>Suivant →</button>
+          </div>
+        </div>
+        <a class="bilan-link" id="selection-bilan" href="/dashboard/bilan"
+          >Examiner le bilan de cette sélection
+          <span aria-hidden="true">↗</span></a
+        >
+      </section>
+      <section id="analytics-view" hidden aria-label="Bilan de la sélection">
+        <div id="analytics-error" aria-live="polite"></div>
+        <div id="analytics" aria-busy="true"><p>Chargement du bilan…</p></div>
+      </section>
+      <section id="detail-view" hidden aria-label="Fiche signal">
+        <div id="detail-error" aria-live="polite"></div>
+        <div id="detail" aria-busy="true"></div>
+      </section>
+      <section id="method-view" class="method" hidden aria-label="Méthode">
+        <div class="method-intro">
+          <span class="folio">R /</span>
+          <p>
+            Un journal de recherche, pas un portefeuille.<br />La conviction se
+            documente ; la performance s’observe.
+          </p>
+        </div>
+        <div class="method-grid">
+          <article>
+            <p class="eyebrow">01 / QUALIFIER</p>
+            <h2>Une analyse, à une date donnée</h2>
+            <p>
+              Chaque qualification, thèse et source est figée à la date
+              d’analyse. Les catégories Rouge, Orange, Vert et Double vert ne
+              sont ni un rendement ni un ordre. Lire la justification dans
+              chaque fiche : un Orange peut indiquer une recherche incomplète,
+              et non un signal positif.
+            </p>
+            <p>
+              La liste couvre les analyses enregistrées de France et des
+              États-Unis. Les fixtures de test sont exclues par défaut.
+            </p>
+          </article>
+          <article>
+            <p class="eyebrow">02 / OBSERVER</p>
+            <h2>Des séances, pas des jours</h2>
+            <p>
+              J0 est exclu. Les points J5, J10, J20 et J30 suivent les séances
+              de la place boursière. Les mesures utilisent les observations
+              contiguës ; une lacune n’est pas comblée par une valeur inventée.
+            </p>
+            <p>
+              Rendements bruts en devise native, sans conversion, frais ni
+              dividendes ajoutés. Ce ne sont pas des rendements de portefeuille.
+            </p>
+          </article>
+          <article>
+            <p class="eyebrow">03 / ÉPROUVER</p>
+            <h2>Le dénominateur fait la mesure</h2>
+            <p>
+              Chaque moyenne et médiane affiche son effectif observé n. Les taux
+              d’atteinte des cibles +5 %, +9 % et +10 % portent uniquement sur
+              les signaux arrivés à 30 séances. Une cohorte vide n’est jamais un
+              résultat nul.
+            </p>
+            <p>
+              Le drawdown de clôture est exact sur les clôtures observées. Les
+              bornes intrajournalières OHLC ne décrivent pas une trajectoire
+              exacte. Une mesure descriptive ne prouve pas la performance
+              future.
+            </p>
+          </article>
+          <article>
+            <p class="eyebrow">04 / CONSERVER LA PREUVE</p>
+            <h2>Une révision n’efface pas l’histoire</h2>
+            <p>
+              Les observations figées ne sont pas réécrites. Une révision
+              fournisseur peut mettre le suivi en quarantaine. Les performances
+              de ces signaux et celles des données manquantes sont exclues du
+              bilan ; l’historique conservé est explicitement non exploitable.
+            </p>
+            <p>
+              La disponibilité de l’API ne prouve ni la fraîcheur des cours ni
+              l’activité de la planification. L’état de cette dernière n’est pas
+              exposé par l’API.
+            </p>
+          </article>
+        </div>
+        <section class="run-archive">
+          <h2>Analyses enregistrées</h2>
+          <p>Contexte et rapport d’origine, conservés sans réécriture.</p>
+          <div id="runs-error"></div>
+          <div id="runs"></div>
+          <button id="more-runs" hidden>Analyses suivantes</button>
+        </section>
+      </section>
+    </main>
+    <footer>
+      <span>Radar <span aria-hidden="true">/</span> Carnet de conviction</span
+      ><a href="/dashboard/methode">Lire la méthode</a
+      ><span>Recherche personnelle · Lecture seule</span>
+    </footer>
+    <noscript
+      >JavaScript est nécessaire pour consulter les données. Les routes API
+      authentifiées restent disponibles.</noscript
+    >
+    <script type="module" src="/dashboard.js"></script>
+  </body>
+</html>
