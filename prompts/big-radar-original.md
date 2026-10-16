@@ -1,6 +1,6 @@
 # Big Radar — référence canonique pullback-first
 
-Le texte utilisateur ci-dessous est conservé sans modification dans `big-radar-user-source.txt`. Il remplace la méthodologie précédente. Les consignes opérationnelles de `daily-cron.md` et le contrat `docs/PAYLOAD.md` encadrent son exécution : horizon **5–30 séances de cotation** (convention du tracking, J0 exclu), cutoff quotidien 17:45 Europe/Paris, objectif expérimental +9 à +10 %, aucun ordre ni garantie. Les alertes sont des niveaux consignés chaque jour, pas une surveillance temps réel ni une notification automatique au franchissement. Données absentes = inconnues, pas un signal négatif ni un faux setup intéressant.
+Le texte utilisateur ci-dessous est conservé sans modification dans `big-radar-user-source.txt`. Il remplace la méthodologie précédente. Les consignes opérationnelles de `daily-cron.md` et le contrat `docs/PAYLOAD.md` encadrent son exécution : horizon **5–30 séances de cotation** (convention du tracking, J0 exclu), cutoff quotidien **09:00 Europe/Paris à partir du 2026-10-19** (17:45 pour les dates antérieures; historiques immuables inchangés), génération et ingestion sous 15 minutes, objectif expérimental +9 à +10 %, aucun ordre ni garantie. Les alertes sont des niveaux consignés chaque jour, pas une surveillance temps réel ni une notification automatique au franchissement. Données absentes = inconnues, pas un signal négatif ni un faux setup intéressant.
 
 ---
 

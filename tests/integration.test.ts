@@ -5,7 +5,7 @@ import { buildApp } from "../src/app.js";
 import { migrate } from "../src/migrate.js";
 import { ingest } from "../src/db.js";
 import { calendar } from "../src/market.js";
-import { hash } from "../src/core.js";
+import { hash, validateRun, watchlist } from "../src/core.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 const fixture = {
@@ -575,6 +575,67 @@ test(
       ),
       false,
     );
+    // Effective schedule: exercise real DB ingestion with a synthetic test clock.
+    // Only this disposable database receives these explicitly labeled payloads.
+    const realNow = Date.now;
+    try {
+      for (const [date, cutoff] of [
+        ["2026-10-16", "2026-10-16T15:45:00.000Z"],
+        ["2026-10-19", "2026-10-19T07:00:00.000Z"],
+        ["2026-10-26", "2026-10-26T08:00:00.000Z"],
+      ]) {
+        const live = {
+          ...structuredClone(fixture),
+          run_key: `daily:${date}`,
+          run_date: date,
+          cutoff_at: cutoff,
+          generated_at: new Date(Date.parse(cutoff) + 15 * 60000).toISOString(),
+          run_type: "live",
+          signals: watchlist.map((w) => ({
+            ...fixture.signals[0],
+            ...w,
+            tag: "ORANGE",
+            target_pct: null,
+            signal_price: null,
+            quote_at: null,
+            quote_source: null,
+            data_status: "missing",
+          })),
+        };
+        Date.now = () => Date.parse(cutoff) + 15 * 60000;
+        const checked = validateRun(live);
+        const stored = await ingest(pool, checked);
+        assert.equal(
+          stored.created,
+          true,
+          "ingestion allows exact cutoff+15min",
+        );
+        const frozen = (
+          await pool.query(
+            "SELECT payload,payload_hash FROM radar_runs WHERE id=$1",
+            [stored.id],
+          )
+        ).rows[0];
+        assert.equal(frozen.payload_hash, hash(checked));
+        Date.now = () => Date.parse(cutoff) + 15 * 60000 + 1;
+        const replay = await ingest(pool, validateRun(frozen.payload));
+        assert.deepEqual(replay, { id: stored.id, created: false });
+        // A missing row cannot be newly backfilled, even one millisecond late.
+        const absent = { ...checked, run_key: `EXPLICIT-TEST-ABSENT:${date}` };
+        await assert.rejects(ingest(pool, absent), /Late live run/);
+        assert.deepEqual(
+          (
+            await pool.query(
+              "SELECT payload,payload_hash FROM radar_runs WHERE id=$1",
+              [stored.id],
+            )
+          ).rows[0],
+          frozen,
+        );
+      }
+    } finally {
+      Date.now = realNow;
+    }
     await app.close();
     await pool.end();
   },

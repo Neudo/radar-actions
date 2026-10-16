@@ -3,7 +3,7 @@
 ## Delivered
 
 - Exact French user source: `prompts/big-radar-user-source.txt`, byte-identical to supplied document, SHA256 `07ddeadddd95d1fe5362fac7917ee5bb5c1c0d4a42a46d017640d51d132fb8a7`.
-- Canonical methodology: `prompts/big-radar-original.md`; scheduler prompt to install verbatim: **`prompts/daily-cron.md`**. Schedule remains 17:45 Europe/Paris; parent agent owns scheduler updates/resume. No cron state was edited by this release.
+- Canonical methodology: `prompts/big-radar-original.md`; scheduler prompt to install verbatim: **`prompts/daily-cron.md`**. At that release, schedule remained 17:45 Europe/Paris (superseded by `docs/MORNING-SCHEDULE.md` effective 2026-10-19); parent agent owns scheduler updates/resume. No cron state was edited by this release.
 - Structured optional `setup` (listing provenance, support, pre-support alert, structural invalidation, technical evidence, confirmations) and `assessment_status` validated and stored in existing immutable JSONB. No SQL migration, no old-row updates, no default fields altering old payload hashes.
 - Unknown research remains a legacy ORANGE carrier only at storage boundary, explicitly Non évalué in UI/report policy, excluded from directional tag cohorts/validated measurements/eligible filters. No fabricated ORANGE opportunity or automatic RED for missing data.
 - Deterministic preparation now exposes up to120 previous-session daily OHLCV, real volume/null, MA20/50/100, extrema20/60 and confirmed pivots. Same-day final daily data excluded; separate daily errors preserve a valid minute baseline. No new vendor, dependency, paid key, live analysis or invented prediction.

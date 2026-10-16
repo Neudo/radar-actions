@@ -94,7 +94,7 @@ try {
           prepared_at: new Date().toISOString(),
           run_type: "live",
           warning:
-            "Market context only, not predictions. News must be independently researched with publication times <= cutoff. Minute quotes strictly predate cutoff.",
+            "Market context only, not predictions. News must be independently researched with publication times <= cutoff. Minute quotes strictly predate the effective Paris cutoff (09:00 from 2026-10-19; 17:45 earlier). Morning prices may be previous-session quotes; retain actual timestamps and disclose age, never invent opening prices.",
           securities: results,
         },
         null,

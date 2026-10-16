@@ -1,6 +1,8 @@
 export function cutoffForDate(date: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw Error("Invalid date");
-  const dt = new Date(date + "T17:45:00Z");
+  // Effective-dated schedule: never reinterpret immutable historical runs.
+  const time = date >= "2026-10-19" ? "09:00" : "17:45";
+  const dt = new Date(date + `T${time}:00Z`);
   const zone = new Intl.DateTimeFormat("en", {
     timeZone: "Europe/Paris",
     timeZoneName: "shortOffset",

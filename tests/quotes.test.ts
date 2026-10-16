@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { cutoffForDate, quoteBeforeCutoff } from "../src/quotes.js";
 test("Paris DST schedule precise", () => {
   assert.equal(cutoffForDate("2026-10-02"), "2026-10-02T15:45:00.000Z");
-  assert.equal(cutoffForDate("2026-10-26"), "2026-10-26T16:45:00.000Z");
+  assert.equal(cutoffForDate("2026-10-26"), "2026-10-26T08:00:00.000Z");
 });
 test("minute close must predate cutoff, not bar opening time", () => {
   const c = {

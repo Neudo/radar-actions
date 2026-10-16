@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { cutoffForDate } from "./quotes.js";
 export const tags = ["RED", "ORANGE", "GREEN", "DOUBLE_GREEN"] as const;
 export type Bar = {
   session: string;
@@ -392,23 +393,10 @@ export function validateRun(input: unknown): Run {
       )
         throw Error("Green tags require timestamped evidence sources");
     }
-    const paris = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Paris",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(new Date(cutoff));
-    const v = Object.fromEntries(paris.map((x) => [x.type, x.value]));
-    if (
-      `${v.year}-${v.month}-${v.day}` !== r.run_date ||
-      v.hour !== "17" ||
-      v.minute !== "45" ||
-      new Date(cutoff).getUTCSeconds() !== 0
-    )
-      throw Error("Live cutoff must be 17:45 Europe/Paris");
+    if (cutoff !== Date.parse(cutoffForDate(r.run_date)))
+      throw Error(
+        "Live cutoff must match effective Europe/Paris schedule (09:00 from 2026-10-19; 17:45 earlier)",
+      );
     if (r.run_key !== `daily:${r.run_date}`)
       throw Error("Use stable daily run_key");
     for (const w of watchlist)
