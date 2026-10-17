@@ -4,6 +4,7 @@ import argparse
 import base64
 import http.client
 import json
+import re
 from pathlib import Path
 import ssl
 
@@ -48,13 +49,18 @@ print('Invalid credentials: 401')
 status, _ = get('/health')
 assert status == 403
 print('Public diagnostics blocked: 403')
-for path in ['/', '/dashboard', '/dashboard.js', '/api/v1/radar/analytics', '/api/v1/radar/runs?limit=1']:
+for path in ['/', '/dashboard', '/api/v1/radar/analytics', '/api/v1/radar/runs?limit=1']:
     status, body = get(path, basic)
     assert status == 200, (path, status)
     if path in ['/', '/dashboard']:
-        assert b'Journal de recherche' in body and b'LE REGISTRE / 01' in body
-    if path == '/dashboard.js':
-        assert read_key.encode() not in body
+        assert b'Journal de recherche' in body and b'id="root"' in body and b'type="module"' in body
+        assets = re.findall(rb'src="(/dashboard-app/assets/[^"<>]+\.js)"', body)
+        assert assets, 'React entry asset missing'
+        for asset in assets:
+            asset_path = asset.decode('ascii')
+            assert get(asset_path)[0] == 401, 'React asset must require authentication'
+            asset_status, asset_body = get(asset_path, basic)
+            assert asset_status == 200 and read_key.encode() not in asset_body
     print(f'GET https://{host}{path} Basic authenticated: {status}')
 for authorization, label in [(basic, 'Basic'), ('Bearer ' + read_key, 'Bearer')]:
     status, body = get('/api/v1/radar/signals?limit=1', authorization)
