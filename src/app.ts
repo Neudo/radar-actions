@@ -7,9 +7,7 @@ import { validateRun, aggregate, tags, watchlist } from "./core.js";
 import { ingest, Conflict } from "./db.js";
 import {
   dashboard,
-  dashboardJS,
-  dashboardCSS,
-  dashboardFormat,
+  dashboardAssets,
 } from "./dashboard.js";
 const equal = (a: string, b: string) => {
   const x = Buffer.from(a),
@@ -290,7 +288,7 @@ export async function buildApp(
       ...s,
       observations: (
         await pool.query(
-          "SELECT * FROM price_observations WHERE signal_id=$1 ORDER BY trading_days_since_signal",
+          "SELECT o.*,f.source,f.fetched_at FROM price_observations o LEFT JOIN market_fetches f ON f.id=o.fetch_id WHERE o.signal_id=$1 ORDER BY o.trading_days_since_signal",
           [id],
         )
       ).rows,
@@ -382,17 +380,14 @@ export async function buildApp(
     app.get(path, async (req, reply) =>
       reply.type("text/html; charset=utf-8").send(dashboard),
     );
-  app.get("/dashboard.css", async (req, reply) =>
-    reply.type("text/css; charset=utf-8").send(dashboardCSS),
-  );
-  app.get("/dashboard-format.js", async (req, reply) =>
-    reply.type("application/javascript; charset=utf-8").send(dashboardFormat),
-  );
+  app.get("/dashboard-app/assets/:name", async (req, reply) => {
+    const asset = dashboardAssets.get((req.params as { name: string }).name);
+    if (!asset) return reply.code(404).send({ error: "Not found" });
+    return reply.type(asset.type).send(asset.body);
+  });
   app.get("/dashboard", async (req, reply) =>
     reply.type("text/html; charset=utf-8").send(dashboard),
   );
-  app.get("/dashboard.js", async (req, reply) =>
-    reply.type("application/javascript; charset=utf-8").send(dashboardJS),
-  );
+
   return app;
 }

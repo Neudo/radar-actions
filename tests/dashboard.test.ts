@@ -123,7 +123,7 @@ test("dashboard direct routes remain authenticated with semantic reading views",
       const r = await app.inject({ url: path, headers });
       assert.equal(r.statusCode, 200);
       assert.match(r.body, /Journal de recherche/);
-      assert.match(r.body, /<main/);
+      assert.match(r.body, /id="root"/);
       assert.match(r.body, /<style>/);
       assert.equal(r.headers["cache-control"], "no-store");
     }

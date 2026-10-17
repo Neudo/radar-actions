@@ -4,7 +4,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 python3
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
-COPY tsconfig.json ./
+COPY tsconfig.json vite.config.ts ./
+COPY frontend ./frontend
 COPY src ./src
 COPY migrations ./migrations
 COPY scripts ./scripts
