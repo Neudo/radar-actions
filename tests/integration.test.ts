@@ -326,6 +326,26 @@ test(
       frozen,
       "material revisions cannot rewrite immutable observations",
     );
+    // Regression: a previously recorded identical quarantine is not a new outage.
+    // Its frozen 30-session cohort stays excluded, never reported as repaired.
+    const knownRetry = await promisify(execFile)("node", ["dist/worker.js"], {
+      env,
+      timeout: 30000,
+    });
+    const knownSummary = JSON.parse(knownRetry.stdout);
+    assert.equal(knownSummary.status, "ok_with_exclusions");
+    assert.equal(knownSummary.summary.excluded, 1);
+    assert.equal(knownSummary.summary.new_failures, 0);
+    assert.equal(
+      (await pool.query("SELECT count(*)::int n FROM data_conflicts")).rows[0]
+        .n,
+      1,
+    );
+    assert.equal(
+      (await pool.query("SELECT status FROM signal_performance")).rows[0]
+        .status,
+      "quarantined",
+    );
     const splitChart = structuredClone(chart);
     splitChart.events.splits = {
       fixture: {

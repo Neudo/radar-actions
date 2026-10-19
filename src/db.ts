@@ -82,7 +82,10 @@ export async function ingest(pool: pg.Pool, r: Run) {
     c.release();
   }
 }
-export async function observations(pool: pg.Pool, id: string): Promise<Bar[]> {
+export async function observations(
+  pool: Pick<pg.Pool, "query">,
+  id: string,
+): Promise<Bar[]> {
   return (
     await pool.query(
       "SELECT ohlc FROM price_observations WHERE signal_id=$1 ORDER BY trading_days_since_signal",

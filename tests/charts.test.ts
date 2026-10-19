@@ -41,6 +41,7 @@ test("evolution includes frozen J0 and explicit gaps, never synthetic observatio
 });
 test("quarantine, missing and unknown never contribute chart points", () => {
   for (const s of [
+    { ...signal, measurement_eligible: false },
     { ...signal, tracking_status: "quarantined" },
     { ...signal, data_status: "missing" },
     { ...signal, payload: { assessment_status: "unknown" } },

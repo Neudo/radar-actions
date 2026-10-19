@@ -64,6 +64,7 @@ export const tracking = (value) =>
     completed: "Terminé",
   })[value] || "État non renseigné";
 export const excluded = (row) =>
+  row.measurement_eligible === false ||
   ["quarantined", "missing"].includes(row.tracking_status) ||
   row.data_status === "missing" ||
   row.payload?.assessment_status === "unknown";
@@ -72,6 +73,7 @@ export function measure(row, checkpoint) {
   if (row.tracking_status === "missing" || row.data_status === "missing")
     return "Exclu · données manquantes";
   if (row.payload?.assessment_status === "unknown") return "Exclu · non évalué";
+  if (row.measurement_eligible === false) return "Exclu · politique de mesure";
   const p = row.performance;
   const v = checkpoint ? p?.checkpoints?.[checkpoint] : p?.current_return_pct;
   if (numeric(v) != null) return percent(v);

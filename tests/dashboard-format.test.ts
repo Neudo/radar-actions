@@ -29,6 +29,10 @@ test("quarantined and missing measures never appear as validated returns", () =>
       sessions: 1,
     },
   };
+  assert.equal(
+    measure({ ...row, tracking_status: "active", measurement_eligible: false }),
+    "Exclu · politique de mesure",
+  );
   assert.equal(measure(row), "Exclu · quarantaine");
   assert.equal(measure(row, 5), "Exclu · quarantaine");
   assert.equal(

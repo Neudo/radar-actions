@@ -5,10 +5,8 @@ import pg from "pg";
 import { z } from "zod";
 import { validateRun, aggregate, tags, watchlist } from "./core.js";
 import { ingest, Conflict } from "./db.js";
-import {
-  dashboard,
-  dashboardAssets,
-} from "./dashboard.js";
+import { eligibleSQL, measurementPolicy } from "./measurement.js";
+import { dashboard, dashboardAssets } from "./dashboard.js";
 const equal = (a: string, b: string) => {
   const x = Buffer.from(a),
     y = Buffer.from(b);
@@ -79,10 +77,8 @@ function filter(input: unknown) {
   }
   if (q.currency) add("s.currency=?", q.currency);
   if (q.tracking) add("COALESCE(p.status,'pending')=?", q.tracking);
-  if (q.eligible === "true")
-    where.push(
-      "COALESCE(p.status,'pending') NOT IN ('missing','quarantined') AND s.data_status!='missing' AND COALESCE(s.payload->>'assessment_status','assessed')!='unknown'",
-    );
+  if (q.eligible === "true") where.push(eligibleSQL);
+  if (q.eligible === "false") where.push(`NOT (${eligibleSQL})`);
   if (q.from) add("r.run_date>=?", q.from);
   if (q.to) add("r.run_date<=?", q.to);
   if (q.active === "true")
@@ -95,12 +91,11 @@ function filter(input: unknown) {
 }
 const join =
   " FROM radar_signals s JOIN radar_runs r ON r.id=s.run_id LEFT JOIN signal_performance p ON p.signal_id=s.id ";
-const select =
-  "SELECT s.*,r.run_date,r.cutoff_at,r.run_type,p.metrics AS performance,p.status AS tracking_status,p.error AS tracking_error,(SELECT max(o.observed_at) FROM price_observations o WHERE o.signal_id=s.id) AS last_observed_at";
+const select = `SELECT s.*,r.run_date,r.cutoff_at,r.run_type,CASE WHEN ${eligibleSQL} THEN p.metrics END AS performance,p.status AS tracking_status,p.error AS tracking_error,(${eligibleSQL}) AS measurement_eligible,'${measurementPolicy}' AS measurement_policy,(SELECT max(o.observed_at) FROM price_observations o WHERE o.signal_id=s.id) AS last_observed_at`;
 function orderBy(sort: string) {
   const stable = ",s.ticker ASC,s.id ASC";
   const metric = (field: string, direction: string) =>
-    `CASE WHEN p.status NOT IN ('missing','quarantined') AND s.data_status!='missing' AND COALESCE(s.payload->>'assessment_status','assessed')!='unknown' THEN (${field})::numeric END ${direction} NULLS LAST` +
+    `CASE WHEN ${eligibleSQL} THEN (${field})::numeric END ${direction} NULLS LAST` +
     stable;
   switch (sort) {
     case "date_asc":
@@ -188,7 +183,7 @@ export async function buildApp(
       const w =
         (
           await pool.query(
-            "SELECT started_at,finished_at,status,processed,errors FROM worker_runs ORDER BY started_at DESC LIMIT 1",
+            "SELECT started_at,finished_at,status,processed,errors,summary FROM worker_runs ORDER BY started_at DESC LIMIT 1",
           )
         ).rows[0] ?? null;
       return {
@@ -286,6 +281,27 @@ export async function buildApp(
     if (!s) return reply.code(404).send({ error: "Not found" });
     return {
       ...s,
+      source_data: {
+        policy: measurementPolicy,
+        accepted_view: "original frozen observations only",
+        eligible: s.measurement_eligible,
+        exclusion_reason: s.measurement_eligible
+          ? null
+          : (s.tracking_error ?? "Baseline or assessment not eligible"),
+        unresolved_revisions: "No revised price is automatically accepted",
+      },
+      revisions: (
+        await pool.query(
+          "SELECT pr.*,f.source,f.fetched_at FROM price_revisions pr JOIN market_fetches f ON f.id=pr.fetch_id WHERE pr.signal_id=$1 ORDER BY pr.session,pr.created_at,pr.id",
+          [id],
+        )
+      ).rows,
+      conflicts: (
+        await pool.query(
+          "SELECT * FROM data_conflicts WHERE signal_id=$1 ORDER BY created_at,id",
+          [id],
+        )
+      ).rows,
       observations: (
         await pool.query(
           "SELECT o.*,f.source,f.fetched_at FROM price_observations o LEFT JOIN market_fetches f ON f.id=o.fetch_id WHERE o.signal_id=$1 ORDER BY o.trading_days_since_signal",
@@ -301,7 +317,7 @@ export async function buildApp(
     const { values, where } = filter(req.query);
     const rows = (
       await pool.query(
-        "SELECT s.run_id,s.tag,s.currency,s.data_status,s.payload->>'assessment_status' AS assessment_status,p.metrics performance,p.status" +
+        `SELECT s.run_id,s.tag,s.currency,s.data_status,s.payload->>'assessment_status' AS assessment_status,p.metrics performance,p.status,(${eligibleSQL}) AS measurement_eligible` +
           join +
           where,
         values,
@@ -310,6 +326,7 @@ export async function buildApp(
     const normalized = rows.map((r) => ({
       ...r,
       performance:
+        r.measurement_eligible === false ||
         ["missing", "quarantined"].includes(r.status) ||
         r.data_status === "missing" ||
         r.assessment_status === "unknown"
@@ -318,6 +335,23 @@ export async function buildApp(
     }));
     return {
       ...aggregate(normalized),
+      measurement_policy: measurementPolicy,
+      measurement_counts: {
+        eligible: rows.filter(
+          (r) =>
+            r.measurement_eligible !== false &&
+            !["missing", "quarantined"].includes(r.status) &&
+            r.data_status !== "missing" &&
+            r.assessment_status !== "unknown",
+        ).length,
+        excluded: rows.filter(
+          (r) =>
+            r.measurement_eligible === false ||
+            ["missing", "quarantined"].includes(r.status) ||
+            r.data_status === "missing" ||
+            r.assessment_status === "unknown",
+        ).length,
+      },
       analysis_count: new Set(rows.map((r) => r.run_id)).size,
       tracking_counts: Object.fromEntries(
         ["pending", "active", "missing", "quarantined", "completed"].map(
@@ -340,7 +374,7 @@ export async function buildApp(
     const w =
       (
         await pool.query(
-          "SELECT started_at,finished_at,status FROM worker_runs ORDER BY started_at DESC LIMIT 1",
+          "SELECT started_at,finished_at,status,summary FROM worker_runs ORDER BY started_at DESC LIMIT 1",
         )
       ).rows[0] ?? null;
     const dates =

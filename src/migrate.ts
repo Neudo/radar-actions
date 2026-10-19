@@ -5,6 +5,12 @@ export async function migrate(pool: pg.Pool) {
   await pool.query(
     await readFile(new URL("../migrations/001.sql", import.meta.url), "utf8"),
   );
+  await pool.query(
+    await readFile(
+      new URL("../migrations/002-worker-evidence.sql", import.meta.url),
+      "utf8",
+    ),
+  );
 }
 if (
   process.argv[1] &&
@@ -28,7 +34,7 @@ if (
           )
           .then((r) => c.query(r.rows[0].sql));
         await c.query(
-          "GRANT CONNECT ON DATABASE investment_radar TO radar_app; GRANT USAGE ON SCHEMA public TO radar_app; GRANT SELECT,INSERT ON radar_runs,radar_signals,price_observations,market_fetches,worker_runs,data_conflicts TO radar_app; GRANT SELECT ON split_audits TO radar_app; REVOKE INSERT ON split_audits FROM radar_app; GRANT SELECT,INSERT,UPDATE ON signal_performance TO radar_app; GRANT UPDATE ON worker_runs TO radar_app; REVOKE CREATE ON SCHEMA public FROM PUBLIC",
+          "GRANT CONNECT ON DATABASE investment_radar TO radar_app; GRANT USAGE ON SCHEMA public TO radar_app; GRANT SELECT,INSERT ON radar_runs,radar_signals,price_observations,market_fetches,worker_runs,data_conflicts,price_revisions,worker_issues TO radar_app; GRANT SELECT ON split_audits TO radar_app; REVOKE INSERT ON split_audits FROM radar_app; GRANT SELECT,INSERT,UPDATE ON signal_performance TO radar_app; GRANT UPDATE ON worker_runs TO radar_app; REVOKE CREATE ON SCHEMA public FROM PUBLIC",
         );
         await c.query("COMMIT");
       } catch (e) {

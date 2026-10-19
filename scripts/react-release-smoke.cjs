@@ -17,7 +17,7 @@ const dir = fs.readdirSync(cache).find(n => n.startsWith('chromium_headless_shel
 const out = 'data/design';
 fs.mkdirSync(out, { recursive: true });
 const hash = b => createHash('sha256').update(b).digest('hex');
-const eligible = s => !['missing', 'quarantined'].includes(s.tracking_status) && s.data_status !== 'missing' && s.payload?.assessment_status !== 'unknown';
+const eligible = s => s.measurement_eligible !== false && !['missing', 'quarantined'].includes(s.tracking_status) && s.data_status !== 'missing' && s.payload?.assessment_status !== 'unknown';
 (async () => {
   const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH || `${cache}/${dir}/chrome-headless-shell-linux64/chrome-headless-shell`, args: ['--no-sandbox'] });
   const report = { target: base, injection, checks: [], assets: [], axe: [], screenshots: [], errors: [] };
@@ -31,7 +31,7 @@ const eligible = s => !['missing', 'quarantined'].includes(s.tracking_status) &&
     page.on('console', m => { if (/Content Security Policy|Refused to/.test(m.text())) report.errors.push(m.text()); });
     const get = async p => { const r = await context.request.get(base + p); assert.equal(r.status(), 200, p); return r.json(); };
     const list = await get('/api/v1/radar/signals?limit=500');
-    const active = list.items.find(eligible);
+    const active = list.items.find(s => eligible(s) && s.performance?.sessions > 0);
     const excluded = list.items.find(s => s.tracking_status === 'quarantined');
     assert.ok(active && excluded);
     const detail = await get('/api/v1/radar/signals/' + active.id);

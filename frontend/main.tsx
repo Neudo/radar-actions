@@ -193,12 +193,16 @@ function Trust() {
                     failed: "traitement en échec",
                     running: "traitement en cours",
                     ok: "traitement terminé",
+                    ok_with_exclusions: "suivi effectué avec exclusions",
+                    partial: "suivi partiel · nouvelle anomalie",
                   } as any
                 )[w?.status] || "état non renseigné")}
         </strong>
         <p>
           État opérationnel ≠ validité des données. Les observations en
           quarantaine restent exclues.
+          {w?.summary?.total != null &&
+            ` ${w.summary.eligible} admissibles / ${w.summary.total} · ${w.summary.excluded} exclus · ${w.summary.new_failures} nouvelles anomalies · ${w.summary.unexpected_failures} erreurs inattendues.`}
         </p>
       </div>
       <Dialog>
@@ -551,7 +555,7 @@ function Register({
       </div>
       <p id="result-summary" className="result-summary" aria-live="polite">
         {v
-          ? `${v.total} signaux dans cette sélection${a ? ` · ${a.analysis_count} analyses · ${a.overall.matured} matures J30 · ${a.tracking_counts.quarantined} en quarantaine` : ""}`
+          ? `${v.total} signaux dans cette sélection${a ? ` · ${a.analysis_count} analyses · ${a.overall.matured} matures J30 · ${a.measurement_counts?.eligible ?? "?"} admissibles · ${a.measurement_counts?.excluded ?? "?"} exclus · ${a.tracking_counts.quarantined} en quarantaine` : ""}`
           : "Chargement des signaux…"}
       </p>
       <ErrorState state={signals} />
@@ -971,15 +975,65 @@ function Detail({ id, params }: { id: string; params: URLSearchParams }) {
                 {p.assessment_status === "unknown"
                   ? "Qualification inconnue : recherche insuffisante, pas un setup ORANGE."
                   : s.tracking_status === "quarantined"
-                    ? "Performance exclue : révision d’une observation figée."
+                    ? "Performance exclue : intégrité ou source à vérifier."
                     : "Performance exclue : données manquantes."}
               </strong>
               <p>
                 Les mesures conservées ne constituent pas une performance valide
-                ; aucun tracé ni agrégat admissible.
+                ; aucun tracé ni agrégat admissible.{" "}
+                {s.tracking_error || s.source_data?.exclusion_reason}
               </p>
             </div>
           )}
+          <section className="evidence-card">
+            <h2>Admissibilité et révisions de source</h2>
+            <p>
+              {invalid(s)
+                ? "Exclu des performances"
+                : "Admissible aux mesures observées"}{" "}
+              · politique {s.measurement_policy || "non renseignée"}.
+            </p>
+            <p>
+              J0 et chaque observation restent figés. Aucune révision matérielle
+              n’est automatiquement approuvée ; un retour du fournisseur au prix
+              initial ne résout pas un conflit archivé.
+            </p>
+            <p>
+              {s.revisions?.length ?? 0} version(s) de prix auditées. Les
+              équivalences de précision conservent le prix initial ; les
+              révisions matérielles ou ambiguës excluent le signal.
+            </p>
+            {!!s.revisions?.length && (
+              <details>
+                <summary>Consulter les versions et leur provenance</summary>
+                {s.revisions.map((r: any) => (
+                  <div key={r.id}>
+                    <p>
+                      {day(r.session)} · {r.classification} ·{" "}
+                      {r.decision === "retain_frozen"
+                        ? "prix initial conservé"
+                        : "exclusion non résolue"}{" "}
+                      · récupération {dateTime(r.fetched_at)}
+                    </p>
+                    <External url={r.source}>Source de la révision</External>
+                    <pre>
+                      {JSON.stringify(
+                        {
+                          observation_id: r.observation_id,
+                          existing_hash: r.existing_hash,
+                          revised_hash: r.new_hash,
+                          revised_ohlc: r.ohlc,
+                          provenance: r.provenance,
+                        },
+                        null,
+                        2,
+                      )}
+                    </pre>
+                  </div>
+                ))}
+              </details>
+            )}
+          </section>
           <div className="detail-layout">
             <article>
               <section>
