@@ -18,7 +18,14 @@ const qs = z.object({
   search: z.string().trim().max(100).optional(),
   currency: z.enum(["EUR", "USD"]).optional(),
   tracking: z
-    .enum(["pending", "active", "missing", "quarantined", "completed"])
+    .enum([
+      "pending",
+      "pending_data",
+      "active",
+      "missing",
+      "quarantined",
+      "completed",
+    ])
     .optional(),
   eligible: z.enum(["true", "false"]).optional(),
   sort: z
@@ -91,7 +98,7 @@ function filter(input: unknown) {
 }
 const join =
   " FROM radar_signals s JOIN radar_runs r ON r.id=s.run_id LEFT JOIN signal_performance p ON p.signal_id=s.id ";
-const select = `SELECT s.*,r.run_date,r.cutoff_at,r.run_type,CASE WHEN ${eligibleSQL} THEN p.metrics END AS performance,p.status AS tracking_status,p.error AS tracking_error,(${eligibleSQL}) AS measurement_eligible,'${measurementPolicy}' AS measurement_policy,(SELECT max(o.observed_at) FROM price_observations o WHERE o.signal_id=s.id) AS last_observed_at`;
+const select = `SELECT s.*,r.run_date,r.cutoff_at,r.run_type,CASE WHEN ${eligibleSQL} THEN p.metrics END AS performance,p.status AS tracking_status,p.error AS tracking_error,p.metrics->'collection' AS collection,(${eligibleSQL}) AS measurement_eligible,'${measurementPolicy}' AS measurement_policy,(SELECT max(o.observed_at) FROM price_observations o WHERE o.signal_id=s.id) AS last_observed_at`;
 function orderBy(sort: string) {
   const stable = ",s.ticker ASC,s.id ASC";
   const metric = (field: string, direction: string) =>
@@ -327,7 +334,7 @@ export async function buildApp(
       ...r,
       performance:
         r.measurement_eligible === false ||
-        ["missing", "quarantined"].includes(r.status) ||
+        ["missing", "quarantined", "pending_data"].includes(r.status) ||
         r.data_status === "missing" ||
         r.assessment_status === "unknown"
           ? null
@@ -340,26 +347,31 @@ export async function buildApp(
         eligible: rows.filter(
           (r) =>
             r.measurement_eligible !== false &&
-            !["missing", "quarantined"].includes(r.status) &&
+            !["missing", "quarantined", "pending_data"].includes(r.status) &&
             r.data_status !== "missing" &&
             r.assessment_status !== "unknown",
         ).length,
         excluded: rows.filter(
           (r) =>
             r.measurement_eligible === false ||
-            ["missing", "quarantined"].includes(r.status) ||
+            ["missing", "quarantined", "pending_data"].includes(r.status) ||
             r.data_status === "missing" ||
             r.assessment_status === "unknown",
         ).length,
       },
       analysis_count: new Set(rows.map((r) => r.run_id)).size,
       tracking_counts: Object.fromEntries(
-        ["pending", "active", "missing", "quarantined", "completed"].map(
-          (status) => [
-            status,
-            rows.filter((r) => (r.status ?? "pending") === status).length,
-          ],
-        ),
+        [
+          "pending",
+          "pending_data",
+          "active",
+          "missing",
+          "quarantined",
+          "completed",
+        ].map((status) => [
+          status,
+          rows.filter((r) => (r.status ?? "pending") === status).length,
+        ]),
       ),
       by_currency: Object.fromEntries(
         ["USD", "EUR"].map((c) => [

@@ -114,6 +114,242 @@ isolated(
     );
   },
 );
+
+isolated(
+  "daily invocation covers >50 cohorts exactly once with listing-level request reuse",
+  async (pool) => {
+    for (let i = 0; i < 101; i++) await signal(pool, "S" + i, "TEST");
+    let calls = 0;
+    const options = {
+      ...deps(pool, chart()),
+      fetchChart: async () => {
+        calls++;
+        return fetcher(pool, chart());
+      },
+    };
+    const r = await runWorker(pool, options);
+    assert.equal(r.summary.selected, 101);
+    assert.equal(r.processed, 101);
+    assert.equal(r.summary.remaining, 0);
+    assert.equal(r.summary.coverage_complete, true);
+    assert.equal(calls, 1);
+    assert.equal(
+      (await pool.query("SELECT count(*)::int n FROM signal_performance"))
+        .rows[0].n,
+      101,
+    );
+  },
+);
+isolated(
+  "exact Oct21 all-null latest completed session is pending with durable retry metadata, not permanent quarantine or false success",
+  async (pool) => {
+    const id = await signal(pool);
+    const c = chart();
+    c.timestamp.unshift(Date.parse("2026-01-02T21:00:00Z") / 1000);
+    for (const k of ["open", "high", "low", "close"])
+      c.indicators.quote[0][k] = [100, null, null, null];
+    for (let i = 0; i < 2; i++) {
+      const r = await runWorker(pool, deps(pool, c));
+      assert.equal(r.status, "pending_data");
+      assert.equal(r.exitCode, 2);
+      assert.equal(r.summary.pending_data, 1);
+      assert.equal(r.summary.pending_incidents.length, 1);
+      assert.equal(r.summary.pending_incidents[0].symbol, "TEST");
+      assert.deepEqual(r.summary.pending_incidents[0].sessions, sessions.slice(0, 3).map(x => x.session));
+      assert.equal(r.summary.unexpected_failures, 0);
+      assert.equal(r.summary.alert_required, i === 0);
+      const p = (
+        await pool.query(
+          "SELECT * FROM signal_performance WHERE signal_id=$1",
+          [id],
+        )
+      ).rows[0];
+      assert.equal(p.status, "pending_data");
+      assert.deepEqual(
+        p.metrics.collection.pending_sessions,
+        sessions.slice(0, 3).map((x) => x.session),
+      );
+      assert.ok(p.metrics.collection.next_retry_at);
+      assert.ok(p.metrics.collection.checked_at);
+    }
+    const app = await buildApp(pool, { key: "fixture", allowFixtures: true });
+    try {
+      const d = (
+        await app.inject({
+          url: "/api/v1/radar/signals/" + id,
+          headers: { authorization: "Bearer fixture" },
+        })
+      ).json();
+      assert.equal(d.measurement_eligible, false);
+      assert.equal(d.performance, null);
+      assert.ok(d.collection.next_retry_at);
+      assert.equal(
+        (
+          await app.inject({
+            url: "/api/v1/radar/signals?include_fixtures=true&tracking=pending_data",
+            headers: { authorization: "Bearer fixture" },
+          })
+        ).statusCode,
+        200,
+      );
+    } finally {
+      await app.close();
+    }
+    assert.equal((await runWorker(pool, deps(pool, chart()))).status, "ok");
+  },
+);
+isolated(
+  "valid prior history and null due rows are pending while empty response stays an outage",
+  async (pool) => {
+    await signal(pool);
+    const c = chart();
+    c.timestamp.unshift(Date.parse("2026-01-02T21:00:00Z") / 1000);
+    for (const k of ["open", "high", "low", "close"])
+      c.indicators.quote[0][k] = [100, null, null, null];
+    const r = await runWorker(pool, deps(pool, c));
+    assert.equal(r.status, "pending_data");
+    assert.equal(r.summary.unexpected_failures, 0);
+  },
+);
+
+isolated(
+  "hard daily bound reports partial remaining coverage and next invocation advances fairly",
+  async (pool) => {
+    for (let i = 0; i < 3; i++) await signal(pool, "BOUND" + i, "TEST");
+    const r = await runWorker(pool, { ...deps(pool, chart()), maxSignals: 2 });
+    assert.equal(r.status, "partial");
+    assert.equal(r.exitCode, 2);
+    assert.equal(r.summary.coverage_complete, false);
+    assert.equal(r.summary.remaining, 1);
+    await runWorker(pool, { ...deps(pool, chart()), maxSignals: 2 });
+    assert.equal(
+      (await pool.query("SELECT count(*)::int n FROM signal_performance"))
+        .rows[0].n,
+      3,
+    );
+  },
+);
+isolated(
+  "bounded supplemental window fills only genuine absent bars and retains exact archived provenance",
+  async (pool) => {
+    const id = await signal(pool);
+    const c = chart();
+    c.indicators.quote[0].close[2] = null;
+    let calls = 0;
+    const r = await runWorker(pool, {
+      ...deps(pool, c),
+      fetchHistory: async (symbol, interval, p, window) => {
+        calls++;
+        // Explicit synthetic regression for Yahoo's real empty one-day range.
+        // Include preceding context but never use it as a post-cutoff observation.
+        assert.deepEqual(window, { start: "2025-12-29", end: "2026-01-08" });
+        return fetcher(pool, chart());
+      },
+    });
+    assert.equal(r.status, "ok");
+    assert.equal(calls, 1);
+    const o = (
+      await pool.query(
+        "SELECT * FROM price_observations WHERE signal_id=$1 ORDER BY session",
+        [id],
+      )
+    ).rows;
+    assert.equal(o.length, 3);
+    assert.notEqual(o[0].fetch_id, o[2].fetch_id);
+    const broken = chart();
+    broken.indicators.quote[0].close[2] = null;
+    const again = await runWorker(pool, {
+      ...deps(pool, broken),
+      fetchHistory: async () => {
+        throw Error("must not refetch gap supplied by frozen observation");
+      },
+    });
+    assert.equal(again.exitCode, 0);
+  },
+);
+isolated(
+  "empty supplemental history remains a real outage on every retry, never pending-only transport success",
+  async (pool) => {
+    await signal(pool);
+    const c = chart();
+    c.indicators.quote[0].close[2] = null;
+    for (let i=0; i<2; i++) {
+      const r = await runWorker(pool, {
+        ...deps(pool, c),
+        fetchHistory: async () => fetcher(pool, chart("TEST", 0)),
+      });
+      assert.equal(r.status, "partial");
+      assert.equal(r.summary.unexpected_failures, 1);
+      assert.equal(r.exitCode, 2);
+    }
+  },
+);
+isolated(
+  "supplemental HTTP outage remains visible every retry and does not masquerade as pending",
+  async (pool) => {
+    await signal(pool);
+    const c = chart();
+    c.indicators.quote[0].close[2] = null;
+    for (let i = 0; i < 2; i++) {
+      const r = await runWorker(pool, {
+        ...deps(pool, c),
+        fetchHistory: async () => {
+          throw Error("Market HTTP 503 supplemental fixture");
+        },
+      });
+      assert.equal(r.exitCode, 2);
+      assert.equal(r.summary.unexpected_failures, 1);
+      assert.equal(r.summary.alert_required, true);
+    }
+  },
+);
+isolated(
+  "empty database cannot claim a successful daily analysis coverage",
+  async (pool) => {
+    const r = await runWorker(pool, { fixtureMode: true });
+    assert.equal(r.exitCode, 2);
+    assert.equal(r.status, "partial");
+    assert.equal(r.summary.alert_required, true);
+  },
+);
+isolated(
+  "supplemental revisions reference the actual supplemental source, not primary null rows",
+  async (pool) => {
+    await signal(pool);
+    await runWorker(pool, deps(pool, chart()));
+    const c = chart("TEST", 4);
+    c.indicators.quote[0].close[0] = null;
+    c.indicators.quote[0].close[3] = null;
+    const h = chart("TEST", 4);
+    h.indicators.quote[0].high[0] = 103;
+    const r = await runWorker(pool, {
+      ...deps(pool, c, Date.parse("2026-01-08T23:00:00Z")),
+      fetchHistory: async () => fetcher(pool, h),
+    });
+    assert.equal(r.exitCode, 2);
+    const rev = (
+      await pool.query(
+        "SELECT pr.ohlc,f.payload FROM price_revisions pr JOIN market_fetches f ON f.id=pr.fetch_id",
+      )
+    ).rows[0];
+    assert.equal(rev.ohlc.high, rev.payload.indicators.quote[0].high[0]);
+  },
+);
+isolated(
+  "entire null OHLC history is still an outage on every retry, not known latest-session pending",
+  async (pool) => {
+    await signal(pool);
+    const c = chart();
+    for (const k of ["open", "high", "low", "close"])
+      c.indicators.quote[0][k] = [null, null, null];
+    for (let i = 0; i < 2; i++) {
+      const r = await runWorker(pool, deps(pool, c));
+      assert.equal(r.summary.unexpected_failures, 1);
+      assert.equal(r.summary.alert_required, true);
+      assert.equal(r.exitCode, 2);
+    }
+  },
+);
 let serial = 0;
 function isolated(name: string, f: (pool: pg.Pool) => Promise<void>) {
   test(name, { skip: !process.env.TEST_DATABASE_URL }, async () => {
@@ -136,7 +372,7 @@ function isolated(name: string, f: (pool: pg.Pool) => Promise<void>) {
     }
   });
 }
-async function signal(pool: pg.Pool, symbol = "TEST") {
+async function signal(pool: pg.Pool, symbol = "TEST", listing = symbol) {
   const r = (
     await pool.query(
       "INSERT INTO radar_runs(run_key,run_date,cutoff_at,generated_at,run_type,market_context,raw_report,payload,payload_hash) VALUES($1,'2026-01-02',$2,$2,'fixture','EXPLICIT TEST FIXTURE','EXPLICIT TEST FIXTURE','{}','fixture') RETURNING id",
@@ -145,8 +381,8 @@ async function signal(pool: pg.Pool, symbol = "TEST") {
   ).rows[0].id;
   return (
     await pool.query(
-      "INSERT INTO radar_signals(run_id,ticker,exchange,market_symbol,company,sector,tag,signal_price,currency,catalyst_type,data_status,payload) VALUES($1,$2,'XNYS',$2,'EXPLICIT TEST FIXTURE','test','GREEN',100,'USD','fixture','verified','{}') RETURNING id",
-      [r, symbol],
+      "INSERT INTO radar_signals(run_id,ticker,exchange,market_symbol,company,sector,tag,signal_price,currency,catalyst_type,data_status,payload) VALUES($1,$2,'XNYS',$3,'EXPLICIT TEST FIXTURE','test','GREEN',100,'USD','fixture','verified','{}') RETURNING id",
+      [r, symbol, listing],
     )
   ).rows[0].id;
 }
@@ -191,7 +427,7 @@ isolated(
     };
     await runWorker(pool, options);
     const before = await snapshot(pool);
-    c = chart();
+    c = chart("TEST", 4);
     c.indicators.quote[0].open[0] = 100.4;
     g = chart("GOOD", 4);
     options.now = () => Date.parse("2026-01-08T23:00:00Z");
@@ -283,7 +519,7 @@ isolated(
       assert.equal(detail.source_data.policy, "frozen-first-v1");
       assert.equal(
         detail.observations.length,
-        3,
+        4,
         "excluded history still accessible",
       );
     } finally {
@@ -332,12 +568,13 @@ isolated(
         id,
       ])
     ).rows[0];
-    assert.equal(perf.status, "missing");
+    assert.equal(perf.status, "pending_data");
     assert.equal(perf.metrics.sessions, 1);
     assert.equal(perf.metrics.checkpoints[5], null);
     const b = await runWorker(pool, deps(pool, c));
-    assert.equal(b.status, "ok_with_exclusions");
-    assert.equal(b.exitCode, 0);
+    assert.equal(b.status, "pending_data");
+    assert.equal(b.exitCode, 2);
+    assert.equal(b.summary.alert_required, false);
     const recovered = await runWorker(pool, deps(pool, chart()));
     assert.equal(recovered.status, "ok");
     perf = (

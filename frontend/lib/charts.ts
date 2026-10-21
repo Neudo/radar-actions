@@ -8,7 +8,7 @@ export const number = (v: unknown): number | null =>
     : Number(v);
 export const invalid = (s: any) =>
   s.measurement_eligible === false ||
-  ["missing", "quarantined"].includes(s.tracking_status) ||
+  ["missing", "quarantined", "pending_data"].includes(s.tracking_status) ||
   s.data_status === "missing" ||
   s.payload?.assessment_status === "unknown";
 export function evolution(s: any) {

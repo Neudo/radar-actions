@@ -25,12 +25,35 @@ export async function fetchChart(
   symbol: string,
   interval = "1d",
   pool?: pg.Pool,
+  window?: { start: string; end: string },
 ) {
   if (!/^[A-Z0-9.-]{1,20}$/.test(symbol)) throw Error("Invalid symbol");
+  if (!["1d", "1m"].includes(interval)) throw Error("Invalid interval");
+  if (
+    window &&
+    (!/^\d{4}-\d{2}-\d{2}$/.test(window.start) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(window.end) ||
+      !Number.isFinite(Date.parse(window.start)) ||
+      !Number.isFinite(Date.parse(window.end)) ||
+      new Date(window.start).toISOString().slice(0, 10) !== window.start ||
+      new Date(window.end).toISOString().slice(0, 10) !== window.end ||
+      window.start >= window.end ||
+      Date.parse(window.end) - Date.parse(window.start) > 120 * 86400000)
+  )
+    throw Error("Invalid history window");
+  const source = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?${window ? `period1=${Date.parse(window.start) / 1000}&period2=${Date.parse(window.end) / 1000}` : `range=${interval === "1m" ? "7d" : "6mo"}`}&interval=${interval}&events=splits%2Cdiv`;
+  let fixtureCache = false;
+  if (pool && process.env.RADAR_TRACK_FIXTURES === "1") {
+    const name = (await pool.query("SELECT current_database() name")).rows[0]
+      .name;
+    if (!name.startsWith("radar_test_"))
+      throw Error("Fixture cache forbidden outside isolated test DB");
+    fixtureCache = true;
+  }
   if (pool) {
     const cached = await pool.query(
-      "SELECT id,payload FROM market_fetches WHERE symbol=$1 AND interval=$2 AND fetched_at>now()-interval '30 minutes' ORDER BY fetched_at DESC LIMIT 1",
-      [symbol, interval],
+      "SELECT id,payload FROM market_fetches WHERE symbol=$1 AND interval=$2 AND (source=$3 OR ($4 AND source LIKE 'https://example.invalid/%')) AND fetched_at>now()-interval '30 minutes' ORDER BY fetched_at DESC LIMIT 1",
+      [symbol, interval, source, fixtureCache],
     );
     if (cached.rowCount)
       return {
@@ -39,7 +62,6 @@ export async function fetchChart(
         cache: true,
       };
   }
-  const source = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=${interval === "1m" ? "7d" : "6mo"}&interval=${interval}&events=splits%2Cdiv`;
   const chart = await retry(async () => {
     const r = await fetch(source, {
       headers: {
@@ -129,10 +151,28 @@ export function selectBars(
   }
   const q = chart.indicators?.quote?.[0];
   if (!q) throw Error("Missing OHLC");
+  if (
+    ["open", "high", "low", "close"].some(
+      (k) =>
+        !Array.isArray(q[k]) || q[k].length !== (chart.timestamp ?? []).length,
+    )
+  )
+    throw Error("Malformed provider OHLC arrays");
   const dates = new Map<string, number>();
-  (chart.timestamp ?? []).forEach((t: number, i: number) =>
-    dates.set(new Date(t * 1000).toISOString().slice(0, 10), i),
-  );
+  const zone =
+    chart.meta?.exchangeTimezoneName ??
+    (currency === "EUR" ? "Europe/Paris" : "America/New_York");
+  (chart.timestamp ?? []).forEach((t: number, i: number) => {
+    if (!Number.isFinite(t)) throw Error("Invalid provider timestamp");
+    const day = new Intl.DateTimeFormat("en-CA", {
+      timeZone: zone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(t * 1000));
+    if (dates.has(day)) throw Error("Duplicate provider daily session");
+    dates.set(day, i);
+  });
   const cutoffDay = new Intl.DateTimeFormat("en-CA", {
     timeZone: currency === "EUR" ? "Europe/Paris" : "America/New_York",
     year: "numeric",
@@ -145,13 +185,16 @@ export function selectBars(
     if (Date.parse(s.close_at) + 3600000 > now) return;
     const i = dates.get(s.session);
     if (i === undefined) return;
+    if (["open", "high", "low", "close"].some((k) => !Array.isArray(q[k])))
+      throw Error("Malformed provider OHLC arrays");
     const vals = [q.open[i], q.high[i], q.low[i], q.close[i]];
     if (
       vals.some(
-        (v) => v === null || v === undefined || !Number.isFinite(v) || v <= 0,
+        (v) => v !== null && v !== undefined && (!Number.isFinite(v) || v <= 0),
       )
     )
-      return;
+      throw Error("Invalid provider OHLC");
+    if (vals.some((v) => v === null || v === undefined)) return;
     bars.push({
       session: s.session,
       n: idx + 1,

@@ -6,4 +6,4 @@ export const unresolvedSQL = (alias = "s") => `EXISTS (
  LEFT JOIN price_revisions pr ON pr.observation_id=po.id AND pr.new_hash=dc.new_hash
  WHERE dc.signal_id=${alias}.id AND (pr.id IS NULL OR pr.decision='exclude')
 )`;
-export const eligibleSQL = `COALESCE(p.status,'pending') NOT IN ('missing','quarantined') AND s.data_status!='missing' AND s.signal_price IS NOT NULL AND COALESCE(s.payload->>'assessment_status','assessed')!='unknown' AND NOT (${unresolvedSQL()})`;
+export const eligibleSQL = `COALESCE(p.status,'pending') NOT IN ('missing','quarantined','pending_data') AND s.data_status!='missing' AND s.signal_price IS NOT NULL AND COALESCE(s.payload->>'assessment_status','assessed')!='unknown' AND NOT (${unresolvedSQL()})`;

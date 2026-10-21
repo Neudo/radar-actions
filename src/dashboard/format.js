@@ -59,16 +59,18 @@ export const tracking = (value) =>
   ({
     active: "En cours",
     pending: "En attente",
+    pending_data: "Données fournisseur en attente",
     missing: "Données manquantes",
     quarantined: "Quarantaine",
     completed: "Terminé",
   })[value] || "État non renseigné";
 export const excluded = (row) =>
   row.measurement_eligible === false ||
-  ["quarantined", "missing"].includes(row.tracking_status) ||
+  ["quarantined", "missing", "pending_data"].includes(row.tracking_status) ||
   row.data_status === "missing" ||
   row.payload?.assessment_status === "unknown";
 export function measure(row, checkpoint) {
+  if (row.tracking_status === "pending_data") return "En attente · fournisseur";
   if (row.tracking_status === "quarantined") return "Exclu · quarantaine";
   if (row.tracking_status === "missing" || row.data_status === "missing")
     return "Exclu · données manquantes";

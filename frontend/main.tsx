@@ -194,6 +194,8 @@ function Trust() {
                     running: "traitement en cours",
                     ok: "traitement terminé",
                     ok_with_exclusions: "suivi effectué avec exclusions",
+                    pending_data:
+                      "couverture vérifiée · données fournisseur en attente",
                     partial: "suivi partiel · nouvelle anomalie",
                   } as any
                 )[w?.status] || "état non renseigné")}
@@ -202,7 +204,7 @@ function Trust() {
           État opérationnel ≠ validité des données. Les observations en
           quarantaine restent exclues.
           {w?.summary?.total != null &&
-            ` ${w.summary.eligible} admissibles / ${w.summary.total} · ${w.summary.excluded} exclus · ${w.summary.new_failures} nouvelles anomalies · ${w.summary.unexpected_failures} erreurs inattendues.`}
+            ` ${w.summary.eligible} admissibles / ${w.summary.total} · ${w.summary.excluded} exclus · ${w.summary.new_failures} nouvelles anomalies · ${w.summary.unexpected_failures} erreurs inattendues · ${w.summary.pending_data ?? 0} en attente fournisseur · ${w.summary.selected} traités / ${w.summary.candidate_snapshot ?? "?"} à vérifier · ${w.summary.remaining} non vérifiés.`}
         </p>
       </div>
       <Dialog>
@@ -393,6 +395,7 @@ function Filters({
               ["", "Tous"],
               ...[
                 "pending",
+                "pending_data",
                 "active",
                 "missing",
                 "quarantined",
@@ -648,6 +651,13 @@ function Register({
                       >
                         {tracking(s.tracking_status)}
                       </span>
+                      {s.collection?.state === "pending_data" && (
+                        <small>
+                          Données attendues :{" "}
+                          {s.collection.pending_sessions.join(", ")} · prochaine
+                          tentative {dateTime(s.collection.next_retry_at)}
+                        </small>
+                      )}
                       <small>
                         {s.last_observed_at
                           ? "Observation : " + day(s.last_observed_at)
